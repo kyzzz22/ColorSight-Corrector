@@ -34,19 +34,43 @@
 
 ## 🚀 Usage & Installation (使用与安装)
 
-### 安装
+**重要提示：** 本扩展程序需通过 Chrome 的**开发者模式**手动加载。
 
-访问 **[Chrome Web Store Link]** 并点击“安装”按钮。
+### 中文 (Zh)
 
-### 设置
+#### 📥 安装步骤（本地导入）
+
+1.  **下载：** 下载项目的最新版本 ZIP 文件（[链接到您的 ZIP 文件]）。
+2.  **解压：** 将下载的 ZIP 文件解压到一个您方便找到的本地文件夹中（例如：`ColorSight-Corrector`）。
+3.  **打开扩展程序管理页面：** 在 Chrome 浏览器地址栏输入 `chrome://extensions` 并回车。
+4.  **开启开发者模式：** 在右上角，打开 **“开发者模式”** 开关。
+5.  **导入：** 点击 **“加载已解压的扩展程序”** 按钮，然后选择您在第 2 步中解压的文件夹（即包含 `manifest.json` 文件的那个文件夹）。
+6.  **完成：** 扩展程序应已成功加载并显示在列表中。
+
+#### 设置
 
 1.  点击浏览器工具栏中的扩展程序图标，打开设置面板。
 2.  选择您的色觉缺陷类型（如 Protanomaly）。
 3.  调整强度滑块以找到最舒适的显示效果。
 
-### 取色
+#### 取色
 
 使用您自定义的快捷键（默认为 `Alt + Shift + C`）在任何网页上激活取色器。
+
+### 日本語 (Ja) / 英語 (En)
+
+| 日本語 (Ja) | 英語 (En) |
+| :--- | :--- |
+| **📥 インストール手順（ローカルインポート）** | **📥 Installation Steps (Local Import)** |
+| 1. **ダウンロード:** プロジェクトの最新版 ZIP ファイルをダウンロードしてください（[ZIP ファイルへのリンク]）。 | 1. **Download:** Download the latest version ZIP file of the project ([Link to your ZIP file]). |
+| 2. **解凍:** ダウンロードした ZIP ファイルを、アクセスしやすいローカルフォルダーに解凍します（例：`ColorSight-Corrector`）。 | 2. **Extract:** Unzip the downloaded file into an easily accessible local folder (e.g., `ColorSight-Corrector`). |
+| 3. **拡張機能管理ページを開く:** Chrome のアドレスバーに `chrome://extensions` と入力し、Enterキーを押します。 | 3. **Open Extensions Page:** In your Chrome address bar, type `chrome://extensions` and press Enter. |
+| 4. **デベロッパーモードを有効にする:** 右上隅にある **“デベロッパーモード”** のトグルスイッチをオンにします。 | 4. **Enable Developer Mode:** Turn on the **“Developer mode”** toggle switch in the top right corner. |
+| 5. **インポート:** **“パッケージ化されていない拡張機能を読み込む”** ボタンをクリックし、ステップ2で解凍したフォルダー（`manifest.json` ファイルを含むフォルダー）を選択します。 | 5. **Load:** Click the **“Load unpacked”** button and select the folder you extracted in step 2 (the folder containing `manifest.json`). |
+| 6. **完了:** 拡張機能が正常に読み込まれ、リストに表示されます。 | 6. **Done:** The extension should now be successfully loaded and displayed in the list. |
+| **設定:** | **Settings:** |
+| 1. ブラウザのツールバーにある拡張機能アイコンをクリックして、設定パネルを開きます。 2. 色覚特性のタイプを選択します（例：Protanomaly）。 3. 強度スライダーを調整して、最も快適な表示効果を見つけます。 | 1. Click the extension icon in the browser toolbar to open the settings panel. 2. Select your type of color vision deficiency (e.g., Protanomaly). 3. Adjust the intensity slider to find the most comfortable viewing effect. |
+| **色抽出:** カスタムショートカット（デフォルトは `Alt + Shift + C`）を使用して、任意のウェブページで色抽出機能を有効にします。 | **Color Picker:** Use your custom hotkey (default is `Alt + Shift + C`) to activate the color picker on any web page. |
 
 ---
 
