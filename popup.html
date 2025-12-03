@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>色彩增强器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 300px;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        
+        .header h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .header p {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .toggle-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .toggle-label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #4CAF50;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        
+        .settings-container {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .settings-label {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        
+        select:hover {
+            border-color: #4CAF50;
+        }
+        
+        select:disabled {
+            background: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        optgroup {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        optgroup option {
+            font-weight: normal;
+            padding-left: 20px;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #45a049;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+        
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #45a049;
+        }
+        
+        input[type="range"]:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #intensityValue {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 8px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .status-message {
+            margin-top: 12px;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: center;
+            min-height: 20px;
+        }
+        
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .info-text {
+            font-size: 11px;
+            color: #999;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>色弱色彩增强器</h2>
+        <p>帮助您更清晰地浏览网页</p>
+    </div>
+    
+    <div class="toggle-container">
+        <span class="toggle-label">启用色彩校正</span>
+        <label class="switch">
+            <input type="checkbox" id="toggleSwitch" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+    
+    <div class="settings-container">
+        <label class="settings-label" for="colorModeSelect">选择类型：</label>
+        <select id="colorModeSelect">
+            <optgroup label="红色相关">
+                <option value="protanomaly">红色弱 (Protanomaly) - 轻度</option>
+                <option value="protanopia">红色盲 (Protanopia) - 完全</option>
+            </optgroup>
+            <optgroup label="绿色相关">
+                <option value="deuteranomaly">绿色弱 (Deuteranomaly) - 轻度</option>
+                <option value="deuteranopia">绿色盲 (Deuteranopia) - 完全</option>
+            </optgroup>
+            <optgroup label="蓝色相关">
+                <option value="tritanomaly">蓝色弱 (Tritanomaly) - 轻度</option>
+                <option value="tritanopia">蓝色盲 (Tritanopia) - 完全</option>
+            </optgroup>
+        </select>
+        
+        <div style="margin-top: 12px;">
+            <label class="settings-label" for="intensitySlider">
+                校正强度: <span id="intensityValue">50</span>%
+            </label>
+            <input type="range" id="intensitySlider" min="1" max="100" value="50" step="1" 
+                   style="width: 100%; margin-top: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #999; margin-top: 2px;">
+                <span>轻微</span>
+                <span>中等</span>
+                <span>强烈</span>
+            </div>
+        </div>
+        
+        <p class="info-text">选择您的色弱/色盲类型，拖动强度条实时调整效果。</p>
+    </div>
+
+    <div class="settings-container">
+        <label class="settings-label">取色快捷键：</label>
+        <div style="font-size: 12px; color: #555; margin-bottom: 6px;">
+            在网页中按下此快捷键，启动取色器并显示颜色信息。
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px; font-size: 12px;">
+            <label><input type="checkbox" id="shortcutCtrl"> Ctrl</label>
+            <label><input type="checkbox" id="shortcutAlt" checked> Alt</label>
+            <label><input type="checkbox" id="shortcutShift" checked> Shift</label>
+            <span>+</span>
+            <input id="shortcutKeyInput" maxlength="1" placeholder="C" style="width: 32px; text-align: center; padding: 4px; border-radius: 4px; border: 1px solid #ddd;">
+        </div>
+        <div id="shortcutPreview" style="font-size: 12px; color: #666;">
+            当前快捷键：Alt + Shift + C
+        </div>
+        <p class="info-text">注意：快捷键仅在网页处于激活状态时生效，且可能与系统/浏览器快捷键冲突。</p>
+    </div>
+    
+    <p id="statusMessage" class="status-message"></p>
+
+    <script src="popup.js"></script>
+</body>
+</html>

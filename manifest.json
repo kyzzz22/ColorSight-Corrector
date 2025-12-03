@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "色弱色彩增强器",
+  "version": "1.0",
+  "description": "实时应用 CSS 滤镜，帮助色弱色盲群体更清晰地浏览网页。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon16.png",
+    "default_title": "色彩增强设置"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E", 
+        "mac": "Command+Shift+E"
+      },
+      "description": "打开色弱色彩增强器设置窗口"
+    }
+
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
