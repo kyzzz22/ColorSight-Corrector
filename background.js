@@ -24,12 +24,11 @@ async function triggerPickColor() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.id) return;
-
-    // 使用 chrome.scripting.executeScript 注入 pickColorAndDescribe 函数及其所有依赖
+    const { lang } = await chrome.storage.local.get({ lang: 'en' });
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      // func 参数会注入这个函数本身及其在同作用域内声明的所有依赖函数
       func: pickColorAndDescribe,
+      args: [lang || 'en']
     });
   } catch (error) {
     // 捕获权限不足或 Tab 丢失等错误
@@ -42,7 +41,114 @@ async function triggerPickColor() {
 // =========================================================================
 
 // 在页面上下文中运行的函数
-function pickColorAndDescribe() {
+function pickColorAndDescribe(lang) {
+  function tt(key) {
+    const zh = {
+      toastUnavailableTitle: '取色不可用',
+      toastUnavailableLine1: '当前浏览器不支持 EyeDropper API',
+      toastUnavailableLine2: '请使用较新的 Chromium 浏览器版本',
+      toastResultTitle: '取色结果',
+      lineColorPrefix: '颜色：',
+      lineHexPrefix: 'HEX：',
+      hueNearWhite: '接近白色',
+      hueNearBlack: '接近黑色',
+      hueGray: '灰色',
+      hueRed: '红色',
+      hueOrange: '橙色',
+      hueYellow: '黄色',
+      hueGreen: '绿色',
+      hueCyan: '青色',
+      hueBlue: '蓝色',
+      hueIndigo: '靛色',
+      huePurple: '紫色',
+      lightVeryBright: '非常亮',
+      lightBright: '偏亮',
+      lightVeryDark: '非常暗',
+      lightDark: '偏暗',
+      satHigh: '高饱和度',
+      satMedium: '中等饱和度',
+      satLow: '低饱和度',
+      satVeryLow: '非常低饱和度',
+      descTemplate: (h, s, l) => `色相≈${Math.round(h)}°，饱和度≈${Math.round(s)}%，亮度≈${Math.round(l)}%。`,
+      composeName: (light, sat, hue) => (light ? light + '的' : '') + (sat ? sat + ' ' : '') + hue
+      ,copiedHex: '已复制 HEX 到剪贴板'
+    };
+    const en = {
+      toastUnavailableTitle: 'Eyedropper unavailable',
+      toastUnavailableLine1: 'Your browser does not support EyeDropper API',
+      toastUnavailableLine2: 'Please use a modern Chromium-based browser',
+      toastResultTitle: 'Picked color',
+      lineColorPrefix: 'Color: ',
+      lineHexPrefix: 'HEX: ',
+      hueNearWhite: 'near white',
+      hueNearBlack: 'near black',
+      hueGray: 'gray',
+      hueRed: 'red',
+      hueOrange: 'orange',
+      hueYellow: 'yellow',
+      hueGreen: 'green',
+      hueCyan: 'cyan',
+      hueBlue: 'blue',
+      hueIndigo: 'indigo',
+      huePurple: 'purple',
+      lightVeryBright: 'very bright',
+      lightBright: 'bright',
+      lightVeryDark: 'very dark',
+      lightDark: 'dark',
+      satHigh: 'high saturation',
+      satMedium: 'medium saturation',
+      satLow: 'low saturation',
+      satVeryLow: 'very low saturation',
+      descTemplate: (h, s, l) => `Hue ≈ ${Math.round(h)}°, Saturation ≈ ${Math.round(s)}%, Lightness ≈ ${Math.round(l)}%`,
+      composeName: (light, sat, hue) => {
+        const parts = [];
+        if (light) parts.push(light);
+        if (sat) parts.push(sat);
+        if (parts.length) return parts.join(', ') + ' ' + hue;
+        return hue;
+      }
+      ,copiedHex: 'Copied HEX to clipboard'
+    };
+    const ja = {
+      toastUnavailableTitle: 'スポイトは利用不可',
+      toastUnavailableLine1: 'お使いのブラウザは EyeDropper API をサポートしていません',
+      toastUnavailableLine2: '新しい Chromium 系ブラウザをご利用ください',
+      toastResultTitle: '取得した色',
+      lineColorPrefix: '色：',
+      lineHexPrefix: 'HEX：',
+      hueNearWhite: '白に近い',
+      hueNearBlack: '黒に近い',
+      hueGray: '灰色',
+      hueRed: '赤',
+      hueOrange: 'オレンジ',
+      hueYellow: '黄色',
+      hueGreen: '緑',
+      hueCyan: 'シアン',
+      hueBlue: '青',
+      hueIndigo: '藍',
+      huePurple: '紫',
+      lightVeryBright: 'とても明るい',
+      lightBright: '明るめ',
+      lightVeryDark: 'とても暗い',
+      lightDark: '暗め',
+      satHigh: '高彩度',
+      satMedium: '中彩度',
+      satLow: '低彩度',
+      satVeryLow: '極低彩度',
+      descTemplate: (h, s, l) => `色相≈${Math.round(h)}°、彩度≈${Math.round(s)}%、明度≈${Math.round(l)}%`,
+      composeName: (light, sat, hue) => {
+        const parts = [];
+        if (light) parts.push(light);
+        if (sat) parts.push(sat);
+        if (parts.length) return parts.join('・') + 'の' + hue;
+        return hue;
+      }
+      ,copiedHex: 'HEX をクリップボードにコピーしました'
+    };
+    const packs = { zh, en, ja };
+    const p = packs[(lang || 'zh').toLowerCase()] || zh;
+    return p[key];
+  }
   // --- [ 辅助函数：颜色转换 ] ---
   
   /**
@@ -101,57 +207,45 @@ function pickColorAndDescribe() {
   /**
    * 将 HEX 转为 HSL 并给出中文颜色名称/描述。
    */
-  function describeColor(hex) {
+  function describeColor(hex, language) {
     const { r, g, b } = hexToRgb(hex);
     const { h, s, l } = rgbToHsl(r, g, b);
-
     let basicHue;
-    // 基础色相判断
     if (s < 10 && l > 90) {
-      basicHue = '接近白色';
+      basicHue = tt('hueNearWhite');
     } else if (s < 10 && l < 15) {
-      basicHue = '接近黑色';
+      basicHue = tt('hueNearBlack');
     } else if (s < 10) {
-      basicHue = '灰色';
+      basicHue = tt('hueGray');
     } else if (h >= 345 || h < 15) {
-      basicHue = '红色';
+      basicHue = tt('hueRed');
     } else if (h >= 15 && h < 45) {
-      basicHue = '橙色';
+      basicHue = tt('hueOrange');
     } else if (h >= 45 && h < 75) {
-      basicHue = '黄色';
+      basicHue = tt('hueYellow');
     } else if (h >= 75 && h < 150) {
-      basicHue = '绿色';
+      basicHue = tt('hueGreen');
     } else if (h >= 150 && h < 210) {
-      basicHue = '青色';
+      basicHue = tt('hueCyan');
     } else if (h >= 210 && h < 255) {
-      basicHue = '蓝色';
+      basicHue = tt('hueBlue');
     } else if (h >= 255 && h < 285) {
-      basicHue = '靛色';
+      basicHue = tt('hueIndigo');
     } else {
-      basicHue = '紫色';
+      basicHue = tt('huePurple');
     }
-
     let lightnessDesc = '';
-    if (l >= 85) lightnessDesc = '非常亮';
-    else if (l >= 70) lightnessDesc = '偏亮';
-    else if (l <= 20) lightnessDesc = '非常暗';
-    else if (l <= 35) lightnessDesc = '偏暗';
-
+    if (l >= 85) lightnessDesc = tt('lightVeryBright');
+    else if (l >= 70) lightnessDesc = tt('lightBright');
+    else if (l <= 20) lightnessDesc = tt('lightVeryDark');
+    else if (l <= 35) lightnessDesc = tt('lightDark');
     let saturationDesc = '';
-    if (s >= 80) saturationDesc = '高饱和度';
-    else if (s >= 50) saturationDesc = '中等饱和度';
-    else if (s >= 20) saturationDesc = '低饱和度';
-    else saturationDesc = '非常低饱和度';
-
-    const name =
-      (lightnessDesc ? lightnessDesc + '的' : '') +
-      (saturationDesc ? saturationDesc + ' ' : '') +
-      basicHue;
-
-    const description = `色相≈${Math.round(h)}°，饱和度≈${Math.round(
-      s
-    )}%，亮度≈${Math.round(l)}%。`;
-
+    if (s >= 80) saturationDesc = tt('satHigh');
+    else if (s >= 50) saturationDesc = tt('satMedium');
+    else if (s >= 20) saturationDesc = tt('satLow');
+    else saturationDesc = tt('satVeryLow');
+    const name = tt('composeName')(lightnessDesc, saturationDesc, basicHue);
+    const description = tt('descTemplate')(h, s, l);
     return { name, description };
   }
 
@@ -194,6 +288,20 @@ function pickColorAndDescribe() {
       swatchEl.style.borderRadius = '6px';
       swatchEl.style.border = '1px solid rgba(0,0,0,0.08)';
       swatchEl.style.background = swatch;
+      swatchEl.style.cursor = 'pointer';
+      swatchEl.title = 'Copy HEX';
+      swatchEl.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(swatch);
+          const copied = document.createElement('div');
+          copied.textContent = tt('copiedHex');
+          copied.style.fontSize = '11px';
+          copied.style.marginTop = '4px';
+          copied.style.color = '#16a34a';
+          container.appendChild(copied);
+          setTimeout(() => copied.remove(), 1200);
+        } catch {}
+      });
       container.appendChild(swatchEl);
     }
 
@@ -234,8 +342,8 @@ function pickColorAndDescribe() {
 
   if (!('EyeDropper' in window)) {
     showColorToast({
-      title: '取色不可用',
-      lines: ['当前浏览器不支持 EyeDropper API', '请使用较新的 Chromium 浏览器版本'],
+      title: tt('toastUnavailableTitle'),
+      lines: [tt('toastUnavailableLine1'), tt('toastUnavailableLine2')],
       theme: 'error',
     });
     return;
@@ -247,13 +355,19 @@ function pickColorAndDescribe() {
     .open()
     .then((result) => {
       const hex = result.sRGBHex; // 例如 "#RRGGBB"
-      const info = describeColor(hex);
+      const info = describeColor(hex, lang);
+      const { r, g, b } = hexToRgb(hex);
+      const hsl = rgbToHsl(r, g, b);
+      const rgbText = `RGB: ${r}, ${g}, ${b}`;
+      const hslText = `HSL: ${hsl.h}, ${hsl.s}%, ${hsl.l}%`;
       showColorToast({
-        title: '取色结果',
+        title: tt('toastResultTitle'),
         swatch: hex,
         lines: [
-          `颜色：${info.name}`,
-          `HEX：${hex}`,
+          `${tt('lineColorPrefix')}${info.name}`,
+          `${tt('lineHexPrefix')}${hex}`,
+          rgbText,
+          hslText,
           info.description,
         ],
         theme: 'success',

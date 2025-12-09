@@ -242,16 +242,35 @@
             margin-top: 8px;
             line-height: 1.4;
         }
+</style>
+    <style>
+        .domain-controls { display: flex; flex-direction: column; gap: 8px; }
+        .domain-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; border: 1px solid #ddd; }
+        .pill--paused { background: #fdecec; color: #b91c1c; border-color: #f5c2c2; }
+        .pill--only { background: #ecfdf5; color: #166534; border-color: #bbf7d0; }
+        .pill--none { background: #f3f4f6; color: #111827; border-color: #e5e7eb; }
+        .seg { display: flex; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .seg button { flex: 1; padding: 8px; font-size: 12px; background: #fff; border: none; cursor: pointer; }
+        .seg button + button { border-left: 1px solid #ddd; }
+        .seg button.active { background: #eef7ff; color: #0369a1; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h2>色弱色彩增强器</h2>
-        <p>帮助您更清晰地浏览网页</p>
+        <h2 id="titleApp">色弱色彩增强器</h2>
+        <p id="subtitle">帮助您更清晰地浏览网页</p>
+        <div style="margin-top:8px; display:flex; justify-content:flex-end;">
+            <select id="langSelect" style="padding:6px; font-size:12px;">
+                <option value="zh">中文</option>
+                <option value="ja">日本語</option>
+                <option value="en">English</option>
+            </select>
+        </div>
     </div>
     
     <div class="toggle-container">
-        <span class="toggle-label">启用色彩校正</span>
+        <span class="toggle-label" id="toggleLabel">启用色彩校正</span>
         <label class="switch">
             <input type="checkbox" id="toggleSwitch" checked>
             <span class="slider"></span>
@@ -259,41 +278,41 @@
     </div>
     
     <div class="settings-container">
-        <label class="settings-label" for="colorModeSelect">选择类型：</label>
+        <label class="settings-label" for="colorModeSelect" id="labelMode">选择类型：</label>
         <select id="colorModeSelect">
-            <optgroup label="红色相关">
-                <option value="protanomaly">红色弱 (Protanomaly) - 轻度</option>
-                <option value="protanopia">红色盲 (Protanopia) - 完全</option>
+            <optgroup label="红色相关" id="optgroupRed">
+                <option value="protanomaly" id="optionProtanomaly">红色弱 (Protanomaly) - 轻度</option>
+                <option value="protanopia" id="optionProtanopia">红色盲 (Protanopia) - 完全</option>
             </optgroup>
-            <optgroup label="绿色相关">
-                <option value="deuteranomaly">绿色弱 (Deuteranomaly) - 轻度</option>
-                <option value="deuteranopia">绿色盲 (Deuteranopia) - 完全</option>
+            <optgroup label="绿色相关" id="optgroupGreen">
+                <option value="deuteranomaly" id="optionDeuteranomaly">绿色弱 (Deuteranomaly) - 轻度</option>
+                <option value="deuteranopia" id="optionDeuteranopia">绿色盲 (Deuteranopia) - 完全</option>
             </optgroup>
-            <optgroup label="蓝色相关">
-                <option value="tritanomaly">蓝色弱 (Tritanomaly) - 轻度</option>
-                <option value="tritanopia">蓝色盲 (Tritanopia) - 完全</option>
+            <optgroup label="蓝色相关" id="optgroupBlue">
+                <option value="tritanomaly" id="optionTritanomaly">蓝色弱 (Tritanomaly) - 轻度</option>
+                <option value="tritanopia" id="optionTritanopia">蓝色盲 (Tritanopia) - 完全</option>
             </optgroup>
         </select>
         
         <div style="margin-top: 12px;">
             <label class="settings-label" for="intensitySlider">
-                校正强度: <span id="intensityValue">50</span>%
+                <span id="intensityLabelPrefix">校正强度</span>: <span id="intensityValue">50</span>%
             </label>
             <input type="range" id="intensitySlider" min="1" max="100" value="50" step="1" 
                    style="width: 100%; margin-top: 4px;">
             <div style="display: flex; justify-content: space-between; font-size: 10px; color: #999; margin-top: 2px;">
-                <span>轻微</span>
-                <span>中等</span>
-                <span>强烈</span>
+                <span id="intensityLow">轻微</span>
+                <span id="intensityMedium">中等</span>
+                <span id="intensityHigh">强烈</span>
             </div>
         </div>
         
-        <p class="info-text">选择您的色弱/色盲类型，拖动强度条实时调整效果。</p>
+        <p class="info-text" id="infoSelectDrag">选择您的色弱/色盲类型，拖动强度条实时调整效果。</p>
     </div>
 
     <div class="settings-container">
-        <label class="settings-label">取色快捷键：</label>
-        <div style="font-size: 12px; color: #555; margin-bottom: 6px;">
+        <label class="settings-label" id="shortcutLabel">取色快捷键：</label>
+        <div style="font-size: 12px; color: #555; margin-bottom: 6px;" id="shortcutDesc">
             在网页中按下此快捷键，启动取色器并显示颜色信息。
         </div>
         <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px; font-size: 12px;">
@@ -306,7 +325,22 @@
         <div id="shortcutPreview" style="font-size: 12px; color: #666;">
             当前快捷键：Alt + Shift + C
         </div>
-        <p class="info-text">注意：快捷键仅在网页处于激活状态时生效，且可能与系统/浏览器快捷键冲突。</p>
+        <p class="info-text" id="shortcutNote">注意：快捷键仅在网页处于激活状态时生效，且可能与系统/浏览器快捷键冲突。</p>
+    </div>
+
+    <div class="settings-container">
+        <div class="domain-controls">
+            <div class="domain-header">
+                <span class="settings-label" id="domainControlsLabel">站点控制：</span>
+                <span id="domainLabel" style="font-size:12px; color:#333;"></span>
+                <span id="domainStatusPill" class="pill pill--none">无规则</span>
+            </div>
+            <div class="seg">
+                <button id="btnFollowDomain">跟随</button>
+                <button id="btnEnableOnlyDomain">仅此站</button>
+                <button id="btnPauseDomain">暂停</button>
+            </div>
+        </div>
     </div>
     
     <p id="statusMessage" class="status-message"></p>

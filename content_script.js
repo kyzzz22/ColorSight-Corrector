@@ -5,8 +5,10 @@ let currentFilterSettings = {
   mode: 'protanomaly',
   intensity: 50,
   enabled: true,
-  shortcut: { ctrl: false, alt: true, shift: true, key: 'C' } // 快捷键默认值
+  shortcut: { ctrl: false, alt: true, shift: true, key: 'C' }
 };
+let applyTimer = null;
+let lastApplied = { mode: null, intensity: null, filterValue: null };
 
 // =========================================================================
 // A. 色彩校正矩阵生成器 (保持不变)
@@ -15,70 +17,67 @@ let currentFilterSettings = {
 // ... [generateFilter 函数内容保持不变] ...
 function generateFilter(type, intensity) {
   intensity = Number(intensity) || 0;
-  
   if (type === 'off' || intensity <= 0) {
-      return 'none';
+    return 'none';
   }
-  
   intensity = Math.max(1, Math.min(100, intensity));
-  const severity = intensity / 100;
-  
+  const severityRaw = Math.pow(intensity / 100, 0.85);
+
   let matrix;
-  
-  switch(type) {
-      case 'protanomaly':
-          const pAEffect = severity * 1.2;
-          const pASeverity = Math.min(1.0, pAEffect);
-          matrix = [
-              1 - 0.433 * pASeverity, 0.433 * pASeverity, 0,     0, 0,
-              0.558 * pASeverity,     1 - 0.558 * pASeverity, 0, 0, 0,
-              0,                      0.242 * pASeverity,     1 - 0.242 * pASeverity, 0, 0,
-              0,                      0,                      0,                      1, 0
-          ];
-          break;
-      case 'protanopia':
-          const pBase = [ 0.567, 0.433, 0, 0, 0, 0.558, 0.442, 0, 0, 0, 0, 0.242, 0.758, 0, 0, 0, 0, 0, 1, 0 ];
-          matrix = pBase.map((v, i) => {
-              const identity = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
-              return identity[i] + (v - identity[i]) * severity;
-          });
-          break;
-      case 'deuteranomaly':
-          const dAEffect = severity * 1.2;
-          const dASeverity = Math.min(1.0, dAEffect);
-          matrix = [
-              1 - 0.375 * dASeverity, 0.375 * dASeverity, 0,     0, 0,
-              0.7 * dASeverity,        1 - 0.7 * dASeverity, 0,   0, 0,
-              0,                        0.3 * dASeverity,          1 - 0.3 * dASeverity, 0, 0,
-              0,                        0,                         0,                         1, 0
-          ];
-          break;
-      case 'deuteranopia':
-          const dBase = [ 0.625, 0.375, 0, 0, 0, 0.7, 0.3, 0, 0, 0, 0, 0.3, 0.7, 0, 0, 0, 0, 0, 1, 0 ];
-          matrix = dBase.map((v, i) => {
-              const identity = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
-              return identity[i] + (v - identity[i]) * severity;
-          });
-          break;
-      case 'tritanomaly':
-          const tAEffect = severity * 1.2;
-          const tASeverity = Math.min(1.0, tAEffect);
-          matrix = [
-              1 - 0.05 * tASeverity,  0.05 * tASeverity,  0,                     0, 0,
-              0,                       1 - 0.567 * tASeverity, 0.567 * tASeverity, 0, 0,
-              0,                       0.475 * tASeverity,     1 - 0.475 * tASeverity, 0, 0,
-              0,                       0,                      0,                      1, 0
-          ];
-          break;
-      case 'tritanopia':
-          const tBase = [ 0.95, 0.05, 0, 0, 0, 0, 0.433, 0.567, 0, 0, 0, 0.475, 0.525, 0, 0, 0, 0, 0, 1, 0 ];
-          matrix = tBase.map((v, i) => {
-              const identity = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
-              return identity[i] + (v - identity[i]) * severity;
-          });
-          break;
-      default:
-          return 'none';
+  switch (type) {
+    case 'protanomaly':
+      const pAEffect = severityRaw * 1.2;
+      const pASeverity = Math.min(1.0, pAEffect);
+      matrix = [
+        1 - 0.433 * pASeverity, 0.433 * pASeverity, 0, 0, 0,
+        0.558 * pASeverity, 1 - 0.558 * pASeverity, 0, 0, 0,
+        0, 0.242 * pASeverity, 1 - 0.242 * pASeverity, 0, 0,
+        0, 0, 0, 1, 0,
+      ];
+      break;
+    case 'protanopia':
+      const pBase = [0.567, 0.433, 0, 0, 0, 0.558, 0.442, 0, 0, 0, 0, 0.242, 0.758, 0, 0, 0, 0, 0, 1, 0];
+      matrix = pBase.map((v, i) => {
+        const identity = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
+        return identity[i] + (v - identity[i]) * severityRaw;
+      });
+      break;
+    case 'deuteranomaly':
+      const dAEffect = severityRaw * 1.2;
+      const dASeverity = Math.min(1.0, dAEffect);
+      matrix = [
+        1 - 0.375 * dASeverity, 0.375 * dASeverity, 0, 0, 0,
+        0.7 * dASeverity, 1 - 0.7 * dASeverity, 0, 0, 0,
+        0, 0.3 * dASeverity, 1 - 0.3 * dASeverity, 0, 0,
+        0, 0, 0, 1, 0,
+      ];
+      break;
+    case 'deuteranopia':
+      const dBase = [0.625, 0.375, 0, 0, 0, 0.7, 0.3, 0, 0, 0, 0, 0.3, 0.7, 0, 0, 0, 0, 0, 1, 0];
+      matrix = dBase.map((v, i) => {
+        const identity = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
+        return identity[i] + (v - identity[i]) * severityRaw;
+      });
+      break;
+    case 'tritanomaly':
+      const tAEffect = severityRaw * 1.2;
+      const tASeverity = Math.min(1.0, tAEffect);
+      matrix = [
+        1 - 0.05 * tASeverity, 0.05 * tASeverity, 0, 0, 0,
+        0, 1 - 0.567 * tASeverity, 0.567 * tASeverity, 0, 0,
+        0, 0.475 * tASeverity, 1 - 0.475 * tASeverity, 0, 0,
+        0, 0, 0, 1, 0,
+      ];
+      break;
+    case 'tritanopia':
+      const tBase = [0.95, 0.05, 0, 0, 0, 0, 0.433, 0.567, 0, 0, 0, 0.475, 0.525, 0, 0, 0, 0, 0, 1, 0];
+      matrix = tBase.map((v, i) => {
+        const identity = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
+        return identity[i] + (v - identity[i]) * severityRaw;
+      });
+      break;
+    default:
+      return 'none';
   }
   
   const matrixString = matrix.map(v => v.toFixed(4)).join(' ');
@@ -103,7 +102,6 @@ function applyFilterToPage(mode, intensity = 50) {
 
   let oldStyle = document.getElementById('color-corrector-filter');
   if (oldStyle) {
-      oldStyle.remove();
   }
   
   const filterValue = generateFilter(mode, intensity);
@@ -111,6 +109,9 @@ function applyFilterToPage(mode, intensity = 50) {
   if (filterValue === 'none' || !filterValue) {
       removeFilterFromPage(); 
       console.warn(`[Filter] 滤镜生成返回 none: 模式=${mode}, 强度=${intensity}`);
+      return;
+  }
+  if (lastApplied.mode === mode && lastApplied.intensity === intensity && lastApplied.filterValue === filterValue) {
       return;
   }
   
@@ -130,8 +131,10 @@ function applyFilterToPage(mode, intensity = 50) {
     }
   `;
   
+  if (oldStyle) oldStyle.remove();
   container.appendChild(style);
   console.log(`[Filter] ✓ 色彩校正已应用: ${mode}, 强度: ${intensity}%`);
+  lastApplied = { mode, intensity, filterValue };
 }
 
 // 移除滤镜
@@ -141,6 +144,18 @@ function removeFilterFromPage() {
       style.remove();
       console.log('[Filter] 色彩校正已移除');
   }
+  lastApplied = { mode: null, intensity: null, filterValue: null };
+  if (applyTimer) { clearTimeout(applyTimer); applyTimer = null; }
+}
+
+function scheduleApplyFilterToPage(mode, intensity) {
+  if (applyTimer) clearTimeout(applyTimer);
+  const m = mode;
+  const i = Number(intensity) || 50;
+  applyTimer = setTimeout(() => {
+    applyTimer = null;
+    applyFilterToPage(m, i);
+  }, 60);
 }
 
 
@@ -150,31 +165,35 @@ function removeFilterFromPage() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Message] Content Script 收到消息:', request);
-  
   if (request.action === 'UPDATE_ALL_SETTINGS') {
-      // 1. 更新本地状态
-      currentFilterSettings = {
-          mode: request.mode,
-          intensity: request.intensity,
-          enabled: request.enabled,
-          shortcut: request.shortcut
-      };
-      
-      // 2. 应用或移除滤镜
-      const intensity = Number(request.intensity);
-      if (request.enabled && intensity > 0) {
-          applyFilterToPage(request.mode, intensity);
-      } else {
-          removeFilterFromPage();
+    currentFilterSettings = {
+      mode: request.mode,
+      intensity: request.intensity,
+      enabled: request.enabled,
+      shortcut: request.shortcut
+    };
+    const host = location.hostname || '';
+    const intensity = Number(currentFilterSettings.intensity);
+    const baseEnabled = !!currentFilterSettings.enabled && intensity > 0;
+    chrome.storage.sync.get({ domainRulesMap: null, domainPauseList: [], domainEnableOnlyList: [] }, (data) => {
+      let map = data.domainRulesMap;
+      if (!map) {
+        map = {};
+        (data.domainPauseList || []).forEach(d => { map[d] = 'off'; });
+        (data.domainEnableOnlyList || []).forEach(d => { map[d] = 'on'; });
+        chrome.storage.sync.set({ domainRulesMap: map });
       }
-      
-      sendResponse({ success: true, message: 'Settings applied.' });
-      
+      const rule = map[host];
+      let finalEnabled = baseEnabled;
+      if (rule === 'off') finalEnabled = false;
+      else if (rule === 'on') finalEnabled = intensity > 0;
+      if (finalEnabled) scheduleApplyFilterToPage(currentFilterSettings.mode, intensity);
+      else removeFilterFromPage();
+      sendResponse({ success: true, message: 'Settings applied with domain rules.' });
+    });
   } else if (request.action === 'pickColorFromPage') {
-      // 取色请求由 background.js 处理，这里仅确认消息收到
-      console.log('[Message] 收到取色请求, 将转发给 Service Worker.');
+    console.log('[Message] 收到取色请求, 将转发给 Service Worker.');
   }
-  
   return true;
 });
 
@@ -249,31 +268,39 @@ chrome.storage.local.get(['colorMode', 'enabled', 'intensity', 'shortcut'], (res
   
   const savedMode = result.colorMode || 'protanomaly';
   const savedIntensity = result.intensity !== undefined ? Number(result.intensity) : 50;
-  const isEnabled = result.enabled !== false; // 默认启用
+  const isEnabled = result.enabled !== false;
   const savedShortcut = result.shortcut || { ctrl: false, alt: true, shift: true, key: 'C' }; 
   
-  // 1. 更新当前状态
   currentFilterSettings = {
     mode: savedMode,
     intensity: savedIntensity,
     enabled: isEnabled,
     shortcut: savedShortcut
   };
-
-  // 2. 应用滤镜
   const intensity = Number(savedIntensity);
-  if (isEnabled && intensity > 0) {
-    console.log(`[Init] 滤镜被启用，准备应用: ${savedMode}, ${intensity}%`);
-    // 确保在正确的时机应用滤镜
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        applyFilterToPage(savedMode, intensity);
-      });
-    } else {
-      applyFilterToPage(savedMode, intensity);
+  const host = location.hostname || '';
+  chrome.storage.sync.get({ domainRulesMap: null, domainPauseList: [], domainEnableOnlyList: [] }, (data) => {
+    let map = data.domainRulesMap;
+    if (!map) {
+      map = {};
+      (data.domainPauseList || []).forEach(d => { map[d] = 'off'; });
+      (data.domainEnableOnlyList || []).forEach(d => { map[d] = 'on'; });
+      chrome.storage.sync.set({ domainRulesMap: map });
     }
-  } else {
-    console.log('[Init] 滤镜被禁用或强度为0，跳过应用。');
-    removeFilterFromPage();
-  }
+    const rule = map[host];
+    let shouldEnable = isEnabled && intensity > 0;
+    if (rule === 'off') shouldEnable = false;
+    else if (rule === 'on') shouldEnable = intensity > 0;
+    if (shouldEnable) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          scheduleApplyFilterToPage(savedMode, intensity);
+        });
+      } else {
+        scheduleApplyFilterToPage(savedMode, intensity);
+      }
+    } else {
+      removeFilterFromPage();
+    }
+  });
 });
