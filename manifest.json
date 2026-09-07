@@ -29,15 +29,7 @@
         "mac": "Command+Shift+E"
       },
       "description": "打开色弱色彩增强器设置窗口"
-    },
-    "toggle-filter": {
-      "suggested_key": {
-        "default": "Alt+Shift+F",
-        "mac": "Alt+Shift+F"
-      },
-      "description": "快速开启/关闭滤镜"
     }
-
   },
   "content_scripts": [
     {

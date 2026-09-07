@@ -17,17 +17,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// 监听快捷键命令
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command === 'toggle-filter') {
-    const data = await chrome.storage.local.get({ enabled: false });
-    const newState = !data.enabled;
-    await chrome.storage.local.set({ enabled: newState });
-    
-    // 可选：在这里可以向当前 tab 发送消息显示 Toast，但在“小而美”理念下，
-    // 视觉上的滤镜切换（配合之前的 transition）本身就是最好的反馈。
-  }
-});
+// 滤镜开关 (Alt+Shift+F 默认) 由 content_script 页内自定义快捷键处理：
+// 它在页面按下时直接写 storage.enabled，经 storage.onChanged 驱动各页面统一生效。
+// 因此这里不再注册 chrome.commands 命令，避免浏览器级命令与页内监听双触发互相抵消。
+// （manifest 仅保留 _execute_action 用于打开设置弹窗。）
 
 /**
  * 异步函数：查询当前活动标签页，并注入取色函数。

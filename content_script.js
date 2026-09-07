@@ -479,44 +479,33 @@ window.addEventListener('keydown', (e) => {
       return;
   }
 
-  const scPicker = currentFilterSettings.shortcut; 
+  // 滤镜开关快捷键在页内处理（可自定义，见 popup 设置）；
+  // manifest 不再注册 toggle-filter 命令，避免双通道各翻转一次互相抵消。
+  const scPicker = currentFilterSettings.shortcut;
   const scFilter = currentFilterSettings.filterShortcut;
 
-  // 1. Check Filter Toggle Shortcut (Peek)
+  // 1. 滤镜开关 (Peek)
   if (checkShortcutMatch(e, scFilter)) {
       if (isShortcutActive) { e.preventDefault(); return; }
       isShortcutActive = true;
-      console.log(`[Shortcut] Filter toggle triggered: ${e.key.toUpperCase()}`);
       e.preventDefault();
-      
-      // Toggle Global Enabled State
-      const newEnabled = !currentFilterSettings.enabled;
-      // Optimistically update local state to feel faster (optional, but storage sync is fast enough usually)
-      // currentFilterSettings.enabled = newEnabled; 
-      // applySettingsWithDomainCheck(); 
-      
-      chrome.storage.local.set({ enabled: newEnabled }, () => {
-         // Notify user? Maybe a small toast in content script?
-         // For now, no UI feedback in content script, just the filter change.
-      });
+      // storage 变更会触发本脚本 storage.onChanged 统一应用/移除滤镜
+      chrome.storage.local.set({ enabled: !currentFilterSettings.enabled });
       return;
   }
 
-  // 2. Check Color Picker Shortcut
+  // 2. 取色快捷键
   if (checkShortcutMatch(e, scPicker)) {
       if (isShortcutActive) { e.preventDefault(); return; }
       isShortcutActive = true;
-      console.log(`[Shortcut] Picker triggered: ${e.key.toUpperCase()}`);
       e.preventDefault();
       chrome.runtime.sendMessage({ action: 'pickColorFromPage' });
-      return;
   }
 }, true);
 
 window.addEventListener('keyup', (e) => {
   const scPicker = currentFilterSettings.shortcut;
   const scFilter = currentFilterSettings.filterShortcut;
-  
   if (checkShortcutMatch(e, scPicker) || checkShortcutMatch(e, scFilter)) {
       isShortcutActive = false;
   }
