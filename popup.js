@@ -12,7 +12,6 @@ let contrastSlider, contrastValue;
 // 新增：快捷键 UI 引用
 let shortcutCtrl, shortcutAlt, shortcutShift, shortcutKeyInput;
 let scFilterCtrl, scFilterAlt, scFilterShift, scFilterKey; // 滤镜开关快捷键
-let shortcutPreview; // (已废弃，直接在 input 中显示)
 let langSelect;
 let currentLang = 'zh';
 let currentDomain = '';
@@ -571,10 +570,6 @@ function updateUIState(enabled) {
   // if (intensitySlider) intensitySlider.disabled = !enabled;
 }
 
-function updateDomainControlsUI(rulesObj) {
-  updateDomainControlsUIFromMap(rulesObj || {});
-}
-
 function updateDomainControlsUIFromMap(rulesMap) {
   const btnPauseDomain = document.getElementById('btnPauseDomain');
   const btnEnableOnlyDomain = document.getElementById('btnEnableOnlyDomain');
@@ -598,12 +593,8 @@ function updateDomainControlsUIFromMap(rulesMap) {
   }
 }
 
+// paused / enableOnly / follow 三态文案（paused 优先）
 function buildDomainStatusText(paused, enableOnly, follow) {
-  // If args not provided, re-calculate (lazy way)
-  if (paused === undefined) {
-      // Not ideal but safe fallback
-      return t('domainStatusFollow');
-  }
   if (paused) return t('domainStatusPaused');
   if (enableOnly) return t('domainStatusOnly');
   return t('domainStatusFollow');

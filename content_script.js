@@ -18,7 +18,6 @@ let lastApplied = { mode: null, intensity: null, saturation: null, contrast: nul
 // =========================================================================
 
 // Version Marker
-console.log('[Filter] 🟢 Content Script Loaded - Matrix Mode v2.0');
 
 // 5x5 矩阵乘法: A * B
 // 输入: 两个长度为 20 的一维数组 (代表 4x5 矩阵，最后一行默认为 0 0 0 1 0)
@@ -329,7 +328,6 @@ function applyFilterToPage(mode, intensity = 50, saturation = 100, contrast = 10
     // 避免同一页面被滤镜应用两次（双重增强）。
 
 
-    console.log(`[Filter] ✓ 色彩校正已应用 (SVG Chain): ${mode}, I:${intensity}%, S:${saturation}%, C:${contrast}%`);
     lastApplied = { mode, intensity, saturation, contrast, filterValue: cssFilter };
 }
 
@@ -352,7 +350,6 @@ function removeFilterFromPage() {
     const svgContainer = document.getElementById('color-corrector-svg-container');
     if (svgContainer) svgContainer.remove();
     
-    console.log('[Filter] 色彩校正已移除');
     lastApplied = { mode: null, intensity: null, saturation: null, contrast: null, filterValue: null };
     if (applyTimer) { clearTimeout(applyTimer); applyTimer = null; }
 }
@@ -431,7 +428,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('[Message] Content Script 收到消息:', request);
   if (request.action === 'UPDATE_ALL_SETTINGS') {
     currentFilterSettings = {
       mode: request.mode,
@@ -444,8 +440,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     };
     applySettingsWithDomainCheck();
     sendResponse({ success: true, message: 'Settings applied with domain rules.' });
-  } else if (request.action === 'pickColorFromPage') {
-    console.log('[Message] 收到取色请求, 将转发给 Service Worker.');
   }
   return true;
 });
@@ -535,8 +529,6 @@ window.addEventListener('keyup', (e) => {
 
 // 页面加载时，从存储中读取设置并应用
 chrome.storage.local.get(['colorMode', 'enabled', 'intensity', 'saturation', 'contrast', 'shortcut', 'filterShortcut'], (result) => {
-  console.log('[Init] 从存储中读取结果:', result);
-  
   const savedMode = result.colorMode || 'protanomaly';
   const savedIntensity = result.intensity !== undefined ? Number(result.intensity) : 50;
   const savedSaturation = result.saturation !== undefined ? Number(result.saturation) : 100;
