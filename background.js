@@ -1,13 +1,54 @@
 /**
- * background.js - 核心背景脚本
- * 功能：处理取色请求（通过快捷键或消息），并将取色逻辑注入到当前页面。
+ * background.js - 核心后台脚本
+ * 功能：
+ *  1. 右键菜单「切换色彩滤镜」快捷入口（图标 / 页面右键）；
+ *  2. 处理取色请求（content_script 自定义快捷键发送），注入取色逻辑到当前页面。
  */
 
 // =========================================================================
 // 1. 触发逻辑 (在后台 Service Worker 中运行)
 // =========================================================================
 
+// 全局统一切换：翻转 storage.enabled，经 storage.onChanged 驱动所有页面生效。
+// 默认读取 true，与 popup/content_script 的默认值保持一致。
+async function toggleFilterGlobal() {
+  const data = await chrome.storage.local.get({ enabled: true });
+  await chrome.storage.local.set({ enabled: !data.enabled });
+}
 
+// --- 右键菜单快捷入口（图标右键 / 页面右键） ---
+function createContextMenus() {
+  try {
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create(
+        {
+          id: 'toggle-filter-menu',
+          title: '切换色彩滤镜（开 / 关）',
+          contexts: ['action'], // Chrome 110+：扩展图标右键菜单
+        },
+        () => {
+          if (chrome.runtime.lastError) {
+            // 旧版 Chromium 不支持 'action' 上下文，退回网页右键菜单
+            chrome.contextMenus.create({
+              id: 'toggle-filter-menu',
+              title: 'ColorSight：切换色彩滤镜（开 / 关）',
+              contexts: ['page'],
+            });
+          }
+        }
+      );
+    });
+  } catch (e) {
+    console.error('注册右键菜单失败:', e);
+  }
+}
+chrome.runtime.onInstalled.addListener(createContextMenus);
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'toggle-filter-menu') {
+    toggleFilterGlobal();
+  }
+});
 
 // 支持来自 content_script 或 popup 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -16,11 +57,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // 由于取色是异步操作，这里可以不 sendResponse
   }
 });
-
-// 滤镜开关 (Alt+Shift+F 默认) 由 content_script 页内自定义快捷键处理：
-// 它在页面按下时直接写 storage.enabled，经 storage.onChanged 驱动各页面统一生效。
-// 因此这里不再注册 chrome.commands 命令，避免浏览器级命令与页内监听双触发互相抵消。
-// （manifest 仅保留 _execute_action 用于打开设置弹窗。）
 
 /**
  * 异步函数：查询当前活动标签页，并注入取色函数。

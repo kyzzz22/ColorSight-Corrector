@@ -18,6 +18,9 @@
 - **画面增强：** 独立的饱和度与对比度滑块（各 0% - 200%），可与色彩校正融合使用，让画面更鲜艳清晰。
 - **单一滤镜防叠加：** 校正矩阵、饱和度、对比度在数学上合并为**一个** `feColorMatrix`，仅作用于 `<html>` 一次，避免多重叠加导致的失真。
 - **站点规则：** 对每个网站可分别设置「跟随全局 / 仅此站开启 / 暂停」，默认跟随全局设置。
+- **站点级参数记忆：** 为每个网站可单独记忆模式、强度、饱和度/对比度（「仅此站」一键快照），访问时自动匹配该站设定，其余站点仍跟随全局模板。
+- **右键快捷开关：** 在扩展图标或网页上右键 →「切换色彩滤镜」，无需打开弹窗即可全局开/关。
+- **色盲模拟预览：** 一键将页面渲染为红/绿/蓝色盲所见（Machado 模拟矩阵），便于对照校正后的增强效果是否到位。
 - **页面取色器：** 集成 EyeDropper API，快速取色并显示颜色名称、HEX、RGB、HSL 与色相/饱和度/亮度描述；点击色块可一键复制 HEX。
 - **自定义快捷键 ×2：** 取色快捷键（默认 `Alt + Shift + C`）与滤镜开关快捷键（默认 `Alt + Shift + F`）均可通过 UI 自定义。
 - **取色不偏色：** 取色期间自动临时挂起滤镜，确保取到页面**原始**颜色。
@@ -33,6 +36,9 @@
 | **画質強調:** 彩度（0%〜200%）とコントラストの独立スライダーを補正と融合。 | **Image Enhancement:** Independent saturation (0% - 200%) and contrast sliders, composable with correction. |
 | **重畳防止フィルター:** 補正・彩度・コントラストを単一の `feColorMatrix` に合成し、`<html>` に一度だけ適用。 | **No Double Filtering:** Correction, saturation and contrast are merged into one `feColorMatrix`, applied once on `<html>`. |
 | **サイト単位のルール:** サイトごとに「グローバル追従 / このサイトのみ / 停止」を設定可能。 | **Per-Site Rules:** Follow / Enable-only-here / Pause for each website. |
+| **サイト単位のカスタム:** サイトごとにモード・強度・彩度・コントラストを保存し自動適用。「このサイトのみ」で即座に保存。 | **Per-Site Presets:** Save mode/intensity/saturation/contrast per website and apply automatically; one-click "This site only". |
+| **右クリックで切替:** 拡張アイコンやページの右クリック→「色フィルターを切替」。 | **Right-Click Toggle:** Icon/page context menu → "Toggle color filter", no popup needed. |
+| **色覚シミュレーション:** ページを1型/2型/3型色盲の見え方でプレビュー（Machado 行列）。 | **CVD Simulation:** Preview pages as seen with protanopia/deuteranopia/tritanopia (Machado matrices). |
 | **ページ色抽出:** EyeDropper API で色名・HEX・RGB・HSL・説明を表示し、クリックで HEX をコピー。 | **On-Page Color Picker:** Shows color name, HEX, RGB/HSL values and description; click swatch to copy HEX. |
 | **カスタムショートカット×2:** スポイト（既定 `Alt+Shift+C`）とフィルター切替（既定 `Alt+Shift+F`）を UI で変更可能。 | **Two Custom Hotkeys:** Picker (default `Alt+Shift+C`) and filter toggle (default `Alt+Shift+F`) are configurable. |
 | **正確な色抽出:** スポイト中はフィルターを一時停止し、ページ本来の色を取得。 | **Accurate Picking:** The filter is temporarily suspended while picking the original color. |
@@ -94,6 +100,7 @@
 
 | 版本 | 变更摘要 |
 | :--- | :--- |
+| **v1.4** | 新增右键菜单「切换色彩滤镜」；色盲模拟预览（红/绿/蓝色盲视角）；站点级参数记忆（每站模式/强度/饱和度/对比度，自动匹配）。 |
 | **v1.3** | 新增画面增强（饱和度 / 对比度）；站点规则（跟随/仅此站/暂停）；多语言界面；滤镜开关自定义快捷键；修复滤镜双重叠加。 |
 | **v1.2** | 采用官方 Mac 版扩展基线；矩阵引擎升级；取色结果支持三语描述与复制。 |
 | **v1.1** | 增强色彩校正引擎与交互体验。 |

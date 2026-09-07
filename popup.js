@@ -8,6 +8,7 @@ let intensitySlider;
 let intensityValue;
 let saturationSlider, saturationValue;
 let contrastSlider, contrastValue;
+let previewSelect;
 
 // 新增：快捷键 UI 引用
 let shortcutCtrl, shortcutAlt, shortcutShift, shortcutKeyInput;
@@ -60,6 +61,12 @@ const translations = {
     ,labelEnhance: '画面增强'
     ,saturationLabel: '饱和度'
     ,contrastLabel: '对比度'
+    ,previewLabel: '模拟预览（色盲视角）'
+    ,optionPreviewOff: '关闭模拟'
+    ,optionPreviewProtanopia: '红色盲模拟'
+    ,optionPreviewDeuteranopia: '绿色盲模拟'
+    ,optionPreviewTritanopia: '蓝色盲模拟'
+    ,previewNote: '按红/绿/蓝色盲所见渲染当前页面，便于对照校正后的增强效果。'
   },
   en: {
     titleApp: 'Color Vision Enhancer',
@@ -105,6 +112,12 @@ const translations = {
     ,labelEnhance: 'Image Enhance'
     ,saturationLabel: 'Saturation'
     ,contrastLabel: 'Contrast'
+    ,previewLabel: 'Preview (CVD view)'
+    ,optionPreviewOff: 'Off'
+    ,optionPreviewProtanopia: 'Protanopia sim'
+    ,optionPreviewDeuteranopia: 'Deuteranopia sim'
+    ,optionPreviewTritanopia: 'Tritanopia sim'
+    ,previewNote: 'Render the page as seen with protanopia / deuteranopia / tritanopia, to compare with the correction.'
   },
   ja: {
     titleApp: '色覚補助エンハンサー',
@@ -150,6 +163,12 @@ const translations = {
     ,labelEnhance: '画像強化'
     ,saturationLabel: '彩度'
     ,contrastLabel: 'コントラスト'
+    ,previewLabel: 'プレビュー（色覚異常の見え方）'
+    ,optionPreviewOff: 'シミュレーションなし'
+    ,optionPreviewProtanopia: '1型色盲シミュレーション'
+    ,optionPreviewDeuteranopia: '2型色盲シミュレーション'
+    ,optionPreviewTritanopia: '3型色盲シミュレーション'
+    ,previewNote: 'ページを「色盲の見え方」で描画し、補正効果と比較できます。'
   }
 };
 function getDefaultLang() {
@@ -170,7 +189,8 @@ function applyTranslations() {
     'intensityLabelPrefix', 'intensityLow', 'intensityMedium', 'intensityHigh', 'infoSelectDrag',
     'shortcutLabel', 'shortcutDesc', 'shortcutNote', 'shortcutGlobalToggle', 'domainControlsLabel',
     'btnPauseShort', 'btnEnableOnlyShort', 'btnFollowShort', 'labelShortcuts', 'shortcutPickerLabel', 'shortcutFilterLabel',
-    'labelEnhance', 'saturationLabel', 'contrastLabel'
+    'labelEnhance', 'saturationLabel', 'contrastLabel',
+    'previewLabel', 'optionPreviewOff', 'optionPreviewProtanopia', 'optionPreviewDeuteranopia', 'optionPreviewTritanopia', 'previewNote'
   ];
   
   ids.forEach(id => {
@@ -218,6 +238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     saturationValue = document.getElementById('saturationValue');
     contrastSlider = document.getElementById('contrastSlider');
     contrastValue = document.getElementById('contrastValue');
+    previewSelect = document.getElementById('previewSelect');
 
     // 快捷键元素引用 (取色)
     shortcutCtrl = document.getElementById('shortcutCtrl');
@@ -249,12 +270,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         intensity: 50,
         saturation: 100,
         contrast: 100,
+        preview: 'off',
         shortcut: defaultPickerShortcut,      // 取色快捷键
         filterShortcut: defaultFilterShortcut, // 滤镜开关快捷键
         lang: defaultLang
     });
-    // 站点控制：读取 domainRulesMap（含旧字段迁移）
-    const rulesMap = await loadDomainRulesMapWithMigration();
+    // 站点控制：读取 domainSettingsMap（含旧字段迁移）
+    const rulesMap = await loadDomainSettingsMapWithMigration();
     
     // 3. 初始化色彩增强 UI
     const isEnabled = result.enabled;
@@ -266,6 +288,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (contrastSlider) contrastSlider.value = result.contrast;
     if (contrastValue) contrastValue.textContent = result.contrast + '%';
     if (toggleSwitch) toggleSwitch.checked = isEnabled;
+    if (previewSelect) previewSelect.value = result.preview || 'off';
+
+    // 站点「仅此站」定制态：面板展示该站快照参数（即时编辑该站，而非全局模板）
+    const siteOverride = rulesMap[currentDomain];
+    if (siteOverride && siteOverride.enabled !== false) {
+      if (siteOverride.mode && colorModeSelect) colorModeSelect.value = siteOverride.mode;
+      if (siteOverride.intensity !== undefined && intensitySlider) {
+        intensitySlider.value = siteOverride.intensity;
+        if (intensityValue) intensityValue.textContent = siteOverride.intensity + '%';
+      }
+      if (siteOverride.saturation !== undefined && saturationSlider) {
+        saturationSlider.value = siteOverride.saturation;
+        if (saturationValue) saturationValue.textContent = siteOverride.saturation + '%';
+      }
+      if (siteOverride.contrast !== undefined && contrastSlider) {
+        contrastSlider.value = siteOverride.contrast;
+        if (contrastValue) contrastValue.textContent = siteOverride.contrast + '%';
+      }
+    }
     
     // 4. 初始化快捷键 UI
     const scPicker = result.shortcut;
@@ -329,9 +370,9 @@ function bindEventListeners() {
       if (intensityValue) intensityValue.textContent = value + '%';
       // 实时应用（不保存到 storage）
       await applyAllSettings(colorModeSelect.value, value, toggleSwitch.checked, getPickerShortcutSettings(), getFilterShortcutSettings(), { 
-          skipStorage: true,
           saturation: saturationSlider ? parseInt(saturationSlider.value) : 100,
-          contrast: contrastSlider ? parseInt(contrastSlider.value) : 100
+          contrast: contrastSlider ? parseInt(contrastSlider.value) : 100,
+          temporary: true
       });
     });
     
@@ -348,9 +389,9 @@ function bindEventListeners() {
           if (isNaN(value)) value = 100;
           if (saturationValue) saturationValue.textContent = value + '%';
           await applyAllSettings(colorModeSelect.value, parseInt(intensitySlider.value), toggleSwitch.checked, getPickerShortcutSettings(), getFilterShortcutSettings(), { 
-              skipStorage: true,
               saturation: value,
-              contrast: contrastSlider ? parseInt(contrastSlider.value) : 100
+              contrast: contrastSlider ? parseInt(contrastSlider.value) : 100,
+              temporary: true
           });
       });
       saturationSlider.addEventListener('change', async (e) => { await saveAndApply(); });
@@ -369,9 +410,9 @@ function bindEventListeners() {
           if (isNaN(value)) value = 100;
           if (contrastValue) contrastValue.textContent = value + '%';
           await applyAllSettings(colorModeSelect.value, parseInt(intensitySlider.value), toggleSwitch.checked, getPickerShortcutSettings(), getFilterShortcutSettings(), { 
-              skipStorage: true,
               saturation: saturationSlider ? parseInt(saturationSlider.value) : 100,
-              contrast: value
+              contrast: value,
+              temporary: true
           });
       });
       contrastSlider.addEventListener('change', async (e) => { await saveAndApply(); });
@@ -392,23 +433,47 @@ function bindEventListeners() {
     });
   }
 
+  // 模拟预览下拉
+  if (previewSelect) {
+    previewSelect.addEventListener('change', async () => {
+      await saveAndApply();
+    });
+  }
+
   // 站点控制按钮
   const btnPauseDomain = document.getElementById('btnPauseDomain');
   const btnEnableOnlyDomain = document.getElementById('btnEnableOnlyDomain');
   const btnFollowDomain = document.getElementById('btnFollowDomain');
 
-  const handleDomainRuleChange = async (type) => { // type: 'off', 'on', 'follow'
-      const rules = await loadDomainRulesMapWithMigration();
+  const handleDomainRuleChange = async (type) => { // 'off' = 暂停, 'on' = 仅此站, 'follow' = 跟随全局
+      const settingsMap = await loadDomainSettingsMapWithMigration();
+      const current = settingsMap[currentDomain];
+      const isPaused = !!(current && current.enabled === false);
+      const isOnlyHere = !!(current && current.enabled !== false);
+
       if (type === 'follow') {
-          // “跟随全局” = 移除该站点规则
-          delete rules[currentDomain];
-      } else {
-          // 再次点击同一种规则视为取消（恢复跟随全局）
-          if (rules[currentDomain] === type) delete rules[currentDomain];
-          else rules[currentDomain] = type;
+          // “跟随全局” = 移除该站点覆盖
+          delete settingsMap[currentDomain];
+      } else if (type === 'off') {
+          // 暂停；若已暂停则再点恢复跟随
+          if (isPaused) delete settingsMap[currentDomain];
+          else settingsMap[currentDomain] = { enabled: false };
+      } else if (type === 'on') {
+          // “仅此站”：以当前面板参数快照该站点并强制启用；再点取消回跟随
+          if (isOnlyHere) {
+              delete settingsMap[currentDomain];
+          } else {
+              settingsMap[currentDomain] = {
+                  enabled: true,
+                  mode: colorModeSelect ? colorModeSelect.value : 'protanomaly',
+                  intensity: intensitySlider ? parseInt(intensitySlider.value) : 50,
+                  saturation: saturationSlider ? parseInt(saturationSlider.value) : 100,
+                  contrast: contrastSlider ? parseInt(contrastSlider.value) : 100
+              };
+          }
       }
-      await chrome.storage.sync.set({ domainRulesMap: rules });
-      updateDomainControlsUIFromMap(rules);
+      await chrome.storage.sync.set({ domainSettingsMap: settingsMap });
+      updateDomainControlsUIFromMap(settingsMap);
       await saveAndApply();
   };
 
@@ -443,8 +508,8 @@ function bindEventListeners() {
         if (toggleSwitch) toggleSwitch.checked = isEnabled;
         updateUIState(isEnabled);
       }
-      if (changes.domainRulesMap) {
-         updateDomainControlsUIFromMap(changes.domainRulesMap.newValue);
+      if (changes.domainSettingsMap) {
+         updateDomainControlsUIFromMap(changes.domainSettingsMap.newValue || {});
       }
     }
   });
@@ -496,7 +561,49 @@ async function saveAndApply() {
     const isEnabled = toggleSwitch ? toggleSwitch.checked : false;
     const saturation = saturationSlider ? parseInt(saturationSlider.value) : 100;
     const contrast = contrastSlider ? parseInt(contrastSlider.value) : 100;
-    await applyAllSettings(mode, intensity, isEnabled, getPickerShortcutSettings(), getFilterShortcutSettings(), { saturation, contrast });
+    const preview = previewSelect ? previewSelect.value : 'off';
+    const picker = getPickerShortcutSettings();
+    const filterShortcut = getFilterShortcutSettings();
+
+    // 判断本站是否处于「仅此站」定制态（覆盖存在且未暂停）
+    const settingsMap = await loadDomainSettingsMapWithMigration();
+    const current = settingsMap[currentDomain];
+    const siteOnly = !!(current && current.enabled !== false);
+
+    // 1) 持久化
+    if (siteOnly) {
+      // 站级参数写入该站快照；全局只保存全局性字段（总开关/快捷键/语言/模拟预览）
+      settingsMap[currentDomain] = { enabled: true, mode, intensity, saturation, contrast };
+      await chrome.storage.sync.set({ domainSettingsMap: settingsMap });
+      await chrome.storage.local.set({
+        enabled: isEnabled,
+        shortcut: picker,
+        filterShortcut: filterShortcut,
+        lang: currentLang,
+        preview
+      });
+      updateDomainControlsUIFromMap(settingsMap);
+    } else {
+      await chrome.storage.local.set({
+        colorMode: mode,
+        intensity,
+        enabled: isEnabled,
+        saturation,
+        contrast,
+        shortcut: picker,
+        filterShortcut: filterShortcut,
+        lang: currentLang,
+        preview
+      });
+    }
+
+    // 2) 下发当前标签并提示
+    await applyAllSettings(mode, intensity, isEnabled, picker, filterShortcut, {
+      saturation,
+      contrast,
+      preview,
+      showStatus: true
+    });
 }
 
 
@@ -505,17 +612,21 @@ async function saveAndApply() {
 // =========================================================================
 
 /**
- * 统一应用和保存所有设置
+ * 将设置下发到当前标签页（持久化由 saveAndApply 统一负责）。
+ * options: { saturation?, contrast?, preview?, temporary?, showStatus? }
+ *  - temporary=true：拖动滑块实时预览（仅发消息给当前标签）
+ *  - showStatus=true：成功后弹出提示
  */
 async function applyAllSettings(mode, intensity, isEnabled, pickerShortcut, filterShortcut, options = {}) {
     try {
         const saturation = options.saturation !== undefined ? options.saturation : 100;
         const contrast = options.contrast !== undefined ? options.contrast : 100;
+        const preview = options.preview !== undefined ? options.preview : (previewSelect ? previewSelect.value : 'off');
 
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        
+    
         if (tab && tab.id) {
-            // 1. 通知 content script
+            // 通知 content script
             await chrome.tabs.sendMessage(tab.id, {
                 action: 'UPDATE_ALL_SETTINGS',
                 mode: mode,
@@ -525,25 +636,15 @@ async function applyAllSettings(mode, intensity, isEnabled, pickerShortcut, filt
                 filterShortcut: filterShortcut,
                 saturation: saturation,
                 contrast: contrast,
-                lang: currentLang
+                preview: preview,
+                lang: currentLang,
+                temporary: !!options.temporary
             }).catch(() => {}); // Ignore connection errors
         }
-        
-        // 2. 保存设置
-        if (!options.skipStorage) {
-             await chrome.storage.local.set({ 
-                colorMode: mode,
-                intensity: intensity,
-                enabled: isEnabled,
-                shortcut: pickerShortcut,
-                filterShortcut: filterShortcut,
-                saturation: saturation,
-                contrast: contrast,
-                lang: currentLang
-            });
+
+        if (options.showStatus) {
             showStatus(t('statusUpdatedApplied'), 'success');
         }
-
     } catch (error) {
         console.error('应用设置失败:', error);
     }
@@ -570,16 +671,21 @@ function updateUIState(enabled) {
   // if (intensitySlider) intensitySlider.disabled = !enabled;
 }
 
-function updateDomainControlsUIFromMap(rulesMap) {
+function updateDomainControlsUIFromMap(settingsMap) {
   const btnPauseDomain = document.getElementById('btnPauseDomain');
   const btnEnableOnlyDomain = document.getElementById('btnEnableOnlyDomain');
   const btnFollowDomain = document.getElementById('btnFollowDomain');
   const domainStatusPill = document.getElementById('domainStatusPill');
-  const rule = (rulesMap && currentDomain) ? rulesMap[currentDomain] : undefined;
+  const rule = (settingsMap && currentDomain) ? settingsMap[currentDomain] : undefined;
+  let ruleObj = rule;
+  if (typeof rule === 'string') {
+    // 兼容半迁移遗留字符串：'off' => {enabled:false}, 'on' => {enabled:true}
+    ruleObj = rule === 'off' ? { enabled: false } : rule === 'on' ? { enabled: true } : null;
+  }
   
-  const paused = rule === 'off';
-  const enableOnly = rule === 'on';
-  const follow = !rule || rule === 'follow';
+  const paused = !!(ruleObj && ruleObj.enabled === false);
+  const enableOnly = !!(ruleObj && !paused);
+  const follow = !ruleObj;
   
   if (btnPauseDomain) { btnPauseDomain.className = 'seg-btn'; if (paused) btnPauseDomain.classList.add('active'); }
   if (btnEnableOnlyDomain) { btnEnableOnlyDomain.className = 'seg-btn'; if (enableOnly) btnEnableOnlyDomain.classList.add('active'); }
@@ -600,17 +706,32 @@ function buildDomainStatusText(paused, enableOnly, follow) {
   return t('domainStatusFollow');
 }
 
-async function loadDomainRulesMapWithMigration() {
-  const data = await chrome.storage.sync.get({ domainRulesMap: null, domainPauseList: [], domainEnableOnlyList: [] });
-  let map = data.domainRulesMap || {};
-  // 兼容旧版本：将 domainPauseList / domainEnableOnlyList 迁移为 domainRulesMap
-  if (!data.domainRulesMap) {
-    const migrated = {};
-    (data.domainPauseList || []).forEach(d => { migrated[d] = 'off'; });
-    (data.domainEnableOnlyList || []).forEach(d => { migrated[d] = 'on'; });
-    if (Object.keys(migrated).length) {
-      await chrome.storage.sync.set({ domainRulesMap: migrated });
-      map = migrated;
+/**
+ * 读取（并迁移旧结构的）站点覆盖表 domainSettingsMap。
+ * 结构：{ host: { enabled?: bool, mode?, intensity?, saturation?, contrast? } }
+ * 覆盖字段缺省时继承全局模板；无该 host 条目 = 完全跟随全局。
+ */
+async function loadDomainSettingsMapWithMigration() {
+  const data = await chrome.storage.sync.get({
+    domainSettingsMap: null,
+    domainRulesMap: null,
+    domainPauseList: [],
+    domainEnableOnlyList: []
+  });
+  let map = data.domainSettingsMap || null;
+  if (!map) {
+    map = {};
+    // 旧版 domainRulesMap: { host: 'off' | 'on' | 'follow' }
+    const old = data.domainRulesMap || {};
+    Object.keys(old).forEach((k) => {
+      if (old[k] === 'off') map[k] = { enabled: false };
+      else if (old[k] === 'on') map[k] = { enabled: true };
+    });
+    // 更早的数组结构
+    (data.domainPauseList || []).forEach((d) => { map[d] = { enabled: false }; });
+    (data.domainEnableOnlyList || []).forEach((d) => { map[d] = { enabled: true }; });
+    if (Object.keys(map).length) {
+      await chrome.storage.sync.set({ domainSettingsMap: map });
     }
   }
   return map;

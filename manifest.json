@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "色弱色彩增强器",
-  "version": "1.3",
+  "version": "1.4",
   "description": "实时应用 CSS 滤镜，帮助色弱色盲群体更清晰地浏览网页。",
   "icons": {
     "16": "icons/icon16.png",
@@ -11,7 +11,8 @@
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "contextMenus"
   ],
   "background": {
     "service_worker": "background.js",

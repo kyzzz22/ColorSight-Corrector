@@ -7,11 +7,12 @@ let currentFilterSettings = {
   enabled: true,
   saturation: 100,
   contrast: 100,
+  preview: 'off',
   shortcut: { ctrl: false, alt: true, shift: true, key: 'C' },
   filterShortcut: { ctrl: false, alt: true, shift: true, key: 'F' }
 };
 let applyTimer = null;
-let lastApplied = { mode: null, intensity: null, saturation: null, contrast: null, filterValue: null };
+let lastApplied = { mode: null, intensity: null, saturation: null, contrast: null, preview: null, filterValue: null };
 
 // =========================================================================
 // A. 色彩校正矩阵生成器 (单矩阵融合模式 - 终极兼容方案)
@@ -267,8 +268,28 @@ function getMatrixValues(type, intensity) {
     return matrix.map(v => v.toFixed(4)).join(' ');
 }
 
+// 色盲模拟矩阵（Machado et al. 2009，全量色盲，用于“模拟所见”预览）
+function getSimulateMatrix(type) {
+    const table = {
+        protanopia: [0.152286, 1.052583, -0.204868, 0.114503, 0.786281, 0.099216, -0.003882, -0.048116, 1.051998],
+        deuteranopia: [0.367322, 0.860646, -0.227968, 0.280085, 0.672501, 0.047413, -0.011821, 0.042940, 0.968881],
+        tritanopia: [1.255528, -0.076749, -0.178779, -0.078411, 0.930809, 0.147602, 0.004733, 0.691367, 0.303900]
+    };
+    const m = table[type];
+    if (!m) return null;
+    // 将 3x3 展开为 4x5 (RGB + 透明度 + 偏移，最后一行 0 0 0 1 0)
+    const flat = [
+        m[0], m[1], m[2], 0, 0,
+        m[3], m[4], m[5], 0, 0,
+        m[6], m[7], m[8], 0, 0,
+        0, 0, 0, 1, 0
+    ];
+    return flat.map(v => v.toFixed(4)).join(' ');
+}
+
 // 应用滤镜到页面
-function applyFilterToPage(mode, intensity = 50, saturation = 100, contrast = 100) {
+// preview: 'off' | 'protanopia' | 'deuteranopia' | 'tritanopia'（色盲模拟视角）
+function applyFilterToPage(mode, intensity = 50, saturation = 100, contrast = 100, preview = 'off') {
     intensity = Number(intensity);
     if (isNaN(intensity)) intensity = 50;
     saturation = Number(saturation);
@@ -277,19 +298,32 @@ function applyFilterToPage(mode, intensity = 50, saturation = 100, contrast = 10
     if (isNaN(contrast)) contrast = 100;
     
     intensity = Math.max(0, Math.min(100, intensity));
-    
-    const isColorCorrectionOff = (intensity === 0 || mode === 'off');
-    const isEnhancementOff = (saturation === 100 && contrast === 100);
 
-    if (isColorCorrectionOff && isEnhancementOff) {
-        removeFilterFromPage();
-        return;
+    const simulateMode = !!preview && preview !== 'off';
+
+    // 1. 计算矩阵
+    let matrixValues;
+    if (simulateMode) {
+        // 模拟模式：输出“该类型色盲所见”，不叠加校正与增强
+        matrixValues = getSimulateMatrix(preview);
+        saturation = 100;
+        contrast = 100;
+        if (!matrixValues) {
+            removeFilterFromPage();
+            return;
+        }
+    } else {
+        const isColorCorrectionOff = (intensity === 0 || mode === 'off');
+        const isEnhancementOff = (saturation === 100 && contrast === 100);
+
+        if (isColorCorrectionOff && isEnhancementOff) {
+            removeFilterFromPage();
+            return;
+        }
+        matrixValues = getMatrixValues(mode, intensity);
     }
 
-    // 1. 获取色盲矩阵值 (如果不应用色盲校正，则为 null)
-    const matrixValues = getMatrixValues(mode, intensity);
-    
-    // 2. 更新 SVG 滤镜链（包含色盲、饱和度、对比度）
+    // 2. 更新 SVG 滤镜链（校正/模拟 × 饱和度 × 对比度）
     // 返回的是相对 ID: #filter-id
     const filterId = updateSVGFilterElement(matrixValues, saturation, contrast);
     
@@ -305,7 +339,9 @@ function applyFilterToPage(mode, intensity = 50, saturation = 100, contrast = 10
     const cssFilter = `url('${filterId}')`;
     
     // 如果已经应用了相同的设置，则跳过
-    if (lastApplied.mode === mode && lastApplied.intensity === intensity && lastApplied.saturation === saturation && lastApplied.contrast === contrast) {
+    if (lastApplied.mode === mode && lastApplied.intensity === intensity &&
+        lastApplied.saturation === saturation && lastApplied.contrast === contrast &&
+        lastApplied.preview === preview) {
         // 但我们要确保 filter 属性还在（防止被页面覆盖）
         const currentFilter = document.documentElement.style.getPropertyValue('filter');
         if (currentFilter && currentFilter.includes(filterId)) {
@@ -316,9 +352,6 @@ function applyFilterToPage(mode, intensity = 50, saturation = 100, contrast = 10
     // 使用 setProperty 避免 CSP 问题，并支持 !important
     const docEl = document.documentElement;
     
-    // 强制触发重排，确保浏览器应用新滤镜
-    // void docEl.offsetHeight; 
-    
     docEl.style.setProperty('filter', cssFilter, 'important');
     docEl.style.setProperty('-webkit-filter', cssFilter, 'important');
     docEl.style.setProperty('min-height', '100%', 'important');
@@ -328,7 +361,7 @@ function applyFilterToPage(mode, intensity = 50, saturation = 100, contrast = 10
     // 避免同一页面被滤镜应用两次（双重增强）。
 
 
-    lastApplied = { mode, intensity, saturation, contrast, filterValue: cssFilter };
+    lastApplied = { mode, intensity, saturation, contrast, preview, filterValue: cssFilter };
 }
 
 // 移除滤镜
@@ -350,11 +383,11 @@ function removeFilterFromPage() {
     const svgContainer = document.getElementById('color-corrector-svg-container');
     if (svgContainer) svgContainer.remove();
     
-    lastApplied = { mode: null, intensity: null, saturation: null, contrast: null, filterValue: null };
+    lastApplied = { mode: null, intensity: null, saturation: null, contrast: null, preview: null, filterValue: null };
     if (applyTimer) { clearTimeout(applyTimer); applyTimer = null; }
 }
 
-function scheduleApplyFilterToPage(mode, intensity, saturation, contrast) {
+function scheduleApplyFilterToPage(mode, intensity, saturation, contrast, preview) {
   if (applyTimer) clearTimeout(applyTimer);
   const m = mode;
   let i = Number(intensity);
@@ -363,10 +396,11 @@ function scheduleApplyFilterToPage(mode, intensity, saturation, contrast) {
   if (isNaN(s)) s = 100;
   let c = Number(contrast);
   if (isNaN(c)) c = 100;
+  const p = (preview === undefined) ? 'off' : preview;
   
   applyTimer = setTimeout(() => {
     applyTimer = null;
-    applyFilterToPage(m, i, s, c);
+    applyFilterToPage(m, i, s, c, p);
   }, 60);
 }
 
@@ -375,35 +409,69 @@ function scheduleApplyFilterToPage(mode, intensity, saturation, contrast) {
 // B. 统一消息监听 (接收来自 popup.js 的设置)
 // =========================================================================
 
+/**
+ * 读取（并迁移旧结构的）站点覆盖表 domainSettingsMap。
+ * 结构：{ host: { enabled?: bool, mode?, intensity?, saturation?, contrast? } }
+ * 覆盖字段缺省时继承全局模板；无该 host 条目 = 完全跟随全局。
+ */
+function loadDomainSettingsMap(callback) {
+    chrome.storage.sync.get(
+        { domainSettingsMap: null, domainRulesMap: null, domainPauseList: [], domainEnableOnlyList: [] },
+        (data) => {
+            let map = data.domainSettingsMap || null;
+            if (!map) {
+                map = {};
+                const old = data.domainRulesMap || {};
+                Object.keys(old).forEach((k) => {
+                    if (old[k] === 'off') map[k] = { enabled: false };
+                    else if (old[k] === 'on') map[k] = { enabled: true };
+                });
+                (data.domainPauseList || []).forEach((d) => { map[d] = { enabled: false }; });
+                (data.domainEnableOnlyList || []).forEach((d) => { map[d] = { enabled: true }; });
+                if (Object.keys(map).length) {
+                    chrome.storage.sync.set({ domainSettingsMap: map });
+                }
+            }
+            callback(map || {});
+        }
+    );
+}
+
 function applySettingsWithDomainCheck() {
     const host = location.hostname || '';
-    const intensity = Number(currentFilterSettings.intensity);
-    
-    let saturation = Number(currentFilterSettings.saturation);
-    if (isNaN(saturation)) saturation = 100;
-    
-    let contrast = Number(currentFilterSettings.contrast);
-    if (isNaN(contrast)) contrast = 100;
-    
-    // 基础开启条件：全局开启且（有强度 或 有增强）
-    const hasEffect = intensity > 0 || saturation !== 100 || contrast !== 100;
-    const globalOn = !!currentFilterSettings.enabled && hasEffect;
-    
-    chrome.storage.sync.get({ domainRulesMap: null }, (data) => {
-        const map = data.domainRulesMap || {};
-        const rule = map[host];
-        
-        let finalEnabled = globalOn;
-        
-        if (rule === 'off') {
-            finalEnabled = false;
-        } else if (rule === 'on') {
-            // 强制开启，只要有效果
-            finalEnabled = hasEffect;
-        }
-        
+
+    const base = {
+        mode: currentFilterSettings.mode || 'protanomaly',
+        intensity: Number(currentFilterSettings.intensity),
+        saturation: Number(currentFilterSettings.saturation),
+        contrast: Number(currentFilterSettings.contrast),
+        preview: currentFilterSettings.preview || 'off',
+        enabled: !!currentFilterSettings.enabled,
+    };
+    if (isNaN(base.intensity)) base.intensity = 0;
+    if (isNaN(base.saturation)) base.saturation = 100;
+    if (isNaN(base.contrast)) base.contrast = 100;
+
+    loadDomainSettingsMap((map) => {
+        let override = map[host];
+        if (!override || typeof override !== 'object') override = {};
+
+        // 站点覆盖优先：仅当覆盖提供了对应字段时使用，否则继承全局
+        const eff = {
+            mode: override.mode !== undefined ? override.mode : base.mode,
+            intensity: override.intensity !== undefined ? Number(override.intensity) : base.intensity,
+            saturation: override.saturation !== undefined ? Number(override.saturation) : base.saturation,
+            contrast: override.contrast !== undefined ? Number(override.contrast) : base.contrast,
+            preview: override.preview !== undefined ? override.preview : base.preview,
+            enabled: override.enabled !== undefined ? !!override.enabled : base.enabled,
+        };
+
+        // 该页应否生效：站点开关为开，且至少有一个“效果”（强度/增强/模拟）
+        const hasEffect = eff.intensity > 0 || eff.saturation !== 100 || eff.contrast !== 100 || (eff.preview !== 'off');
+        const finalEnabled = eff.enabled && hasEffect;
+
         if (finalEnabled) {
-            scheduleApplyFilterToPage(currentFilterSettings.mode, intensity, saturation, contrast);
+            scheduleApplyFilterToPage(eff.mode, eff.intensity, eff.saturation, eff.contrast, eff.preview);
         } else {
             removeFilterFromPage();
         }
@@ -418,14 +486,33 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         if (changes.intensity) { currentFilterSettings.intensity = changes.intensity.newValue; needsUpdate = true; }
         if (changes.saturation) { currentFilterSettings.saturation = changes.saturation.newValue; needsUpdate = true; }
         if (changes.contrast) { currentFilterSettings.contrast = changes.contrast.newValue; needsUpdate = true; }
+        if (changes.preview) { currentFilterSettings.preview = changes.preview.newValue || 'off'; needsUpdate = true; }
         if (changes.shortcut) { currentFilterSettings.shortcut = changes.shortcut.newValue; }
         if (changes.filterShortcut) { currentFilterSettings.filterShortcut = changes.filterShortcut.newValue; }
     }
-    if (areaName === 'sync' && changes.domainRulesMap) {
+    if (areaName === 'sync' && (changes.domainSettingsMap || changes.domainRulesMap)) {
         needsUpdate = true;
     }
     if (needsUpdate) applySettingsWithDomainCheck();
 });
+
+// 临时预览：把消息参数立即应用到当前标签（用于 popup 拖动滑块），
+// 不合并站点快照（快照站点在“保存”时被同步覆盖）；但仍尊重“暂停”。
+function applySettingsDirectly(mode, intensity, saturation, contrast, preview, enabled) {
+    const i = Number(intensity);
+    const s = Number(saturation);
+    const c = Number(contrast);
+    const finalIntensity = isNaN(i) ? 0 : i;
+    const finalSaturation = isNaN(s) ? 100 : s;
+    const finalContrast = isNaN(c) ? 100 : c;
+    const p = preview || 'off';
+    const hasEffect = finalIntensity > 0 || finalSaturation !== 100 || finalContrast !== 100 || p !== 'off';
+    if (enabled && hasEffect) {
+        scheduleApplyFilterToPage(mode, finalIntensity, finalSaturation, finalContrast, p);
+    } else {
+        removeFilterFromPage();
+    }
+}
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'UPDATE_ALL_SETTINGS') {
@@ -435,10 +522,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       enabled: request.enabled,
       saturation: request.saturation !== undefined ? request.saturation : 100,
       contrast: request.contrast !== undefined ? request.contrast : 100,
+      preview: request.preview !== undefined ? request.preview : 'off',
       shortcut: request.shortcut,
       filterShortcut: request.filterShortcut
     };
-    applySettingsWithDomainCheck();
+    if (request.temporary) {
+      // 拖动滑块时的实时预览
+      loadDomainSettingsMap((map) => {
+        const ov = map[location.hostname || ''] || {};
+        if (ov.enabled === false) {
+          removeFilterFromPage();
+        } else {
+          applySettingsDirectly(request.mode, request.intensity, request.saturation, request.contrast, request.preview, request.enabled);
+        }
+      });
+    } else {
+      applySettingsWithDomainCheck();
+    }
     sendResponse({ success: true, message: 'Settings applied with domain rules.' });
   }
   return true;
@@ -489,8 +589,17 @@ window.addEventListener('keydown', (e) => {
       if (isShortcutActive) { e.preventDefault(); return; }
       isShortcutActive = true;
       e.preventDefault();
-      // storage 变更会触发本脚本 storage.onChanged 统一应用/移除滤镜
-      chrome.storage.local.set({ enabled: !currentFilterSettings.enabled });
+      // 若本站有站点覆盖（仅此站/暂停），快捷键翻转该站状态；
+      // 否则翻转全局开关。storage 变更会触发 onChanged 统一应用/移除滤镜。
+      loadDomainSettingsMap((map) => {
+          const ov = map[location.hostname || ''];
+          if (ov && ov.enabled !== undefined) {
+              map[location.hostname || ''] = { ...ov, enabled: !ov.enabled };
+              chrome.storage.sync.set({ domainSettingsMap: map });
+          } else {
+              chrome.storage.local.set({ enabled: !currentFilterSettings.enabled });
+          }
+      });
       return;
   }
 
@@ -516,12 +625,13 @@ window.addEventListener('keyup', (e) => {
 // D. 页面加载初始化 (确保正确读取和应用)
 // =========================================================================
 
-// 页面加载时，从存储中读取设置并应用
-chrome.storage.local.get(['colorMode', 'enabled', 'intensity', 'saturation', 'contrast', 'shortcut', 'filterShortcut'], (result) => {
+// 页面加载时，从存储中读取设置并应用（站点覆盖与生效判定统一交给 applySettingsWithDomainCheck）
+chrome.storage.local.get(['colorMode', 'enabled', 'intensity', 'saturation', 'contrast', 'preview', 'shortcut', 'filterShortcut'], (result) => {
   const savedMode = result.colorMode || 'protanomaly';
   const savedIntensity = result.intensity !== undefined ? Number(result.intensity) : 50;
   const savedSaturation = result.saturation !== undefined ? Number(result.saturation) : 100;
   const savedContrast = result.contrast !== undefined ? Number(result.contrast) : 100;
+  const savedPreview = result.preview || 'off';
   const isEnabled = result.enabled !== false;
   const savedShortcut = result.shortcut || { ctrl: false, alt: true, shift: true, key: 'C' }; 
   const savedFilterShortcut = result.filterShortcut || { ctrl: false, alt: true, shift: true, key: 'F' };
@@ -532,38 +642,10 @@ chrome.storage.local.get(['colorMode', 'enabled', 'intensity', 'saturation', 'co
     enabled: isEnabled,
     saturation: savedSaturation,
     contrast: savedContrast,
+    preview: savedPreview,
     shortcut: savedShortcut,
     filterShortcut: savedFilterShortcut
   };
-  const intensity = Number(savedIntensity);
-  const saturation = Number(savedSaturation);
-  const contrast = Number(savedContrast);
-  const host = location.hostname || '';
-  chrome.storage.sync.get({ domainRulesMap: null, domainPauseList: [], domainEnableOnlyList: [] }, (data) => {
-    let map = data.domainRulesMap;
-    if (!map) {
-      map = {};
-      (data.domainPauseList || []).forEach(d => { map[d] = 'off'; });
-      (data.domainEnableOnlyList || []).forEach(d => { map[d] = 'on'; });
-      chrome.storage.sync.set({ domainRulesMap: map });
-    }
-    const rule = map[host];
-    const hasEffect = intensity > 0 || saturation !== 100 || contrast !== 100;
-    let shouldEnable = isEnabled && hasEffect;
-    
-    if (rule === 'off') shouldEnable = false;
-    else if (rule === 'on') shouldEnable = hasEffect;
-    
-    if (shouldEnable) {
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-          scheduleApplyFilterToPage(savedMode, intensity, saturation, contrast);
-        });
-      } else {
-        scheduleApplyFilterToPage(savedMode, intensity, saturation, contrast);
-      }
-    } else {
-      removeFilterFromPage();
-    }
-  });
+
+  applySettingsWithDomainCheck();
 });

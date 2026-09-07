@@ -399,6 +399,21 @@
 
     <div class="section-card">
         <div class="section-title">
+            <span id="previewLabel">模拟预览（色盲视角）</span>
+        </div>
+        <select id="previewSelect" class="modern-select">
+            <option value="off" id="optionPreviewOff">关闭模拟</option>
+            <option value="protanopia" id="optionPreviewProtanopia">红色盲模拟</option>
+            <option value="deuteranopia" id="optionPreviewDeuteranopia">绿色盲模拟</option>
+            <option value="tritanopia" id="optionPreviewTritanopia">蓝色盲模拟</option>
+        </select>
+        <div style="font-size: 10px; color: #94a3b8; margin-top: 8px; line-height: 1.4;" id="previewNote">
+            按红/绿/蓝色盲所见渲染当前页面，便于对照校正后的增强效果。
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title">
             <span id="domainControlsLabel">Site Rules</span>
             <span id="domainStatusPill" class="domain-status">Default</span>
         </div>
