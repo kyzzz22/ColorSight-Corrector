@@ -36,11 +36,20 @@ async function triggerPickColor() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.id) return;
-    const { lang } = await chrome.storage.local.get({ lang: 'en' });
+    const { lang } = await chrome.storage.local.get({ lang: '' });
+    let effectiveLang = lang || '';
+    if (!effectiveLang && chrome.i18n && typeof chrome.i18n.getUILanguage === 'function') {
+      // 首次使用、storage 尚无 lang 时，按浏览器界面语言兜底
+      const ui = chrome.i18n.getUILanguage().toLowerCase();
+      if (ui.startsWith('zh')) effectiveLang = 'zh';
+      else if (ui.startsWith('ja')) effectiveLang = 'ja';
+      else effectiveLang = 'en';
+    }
+    if (!effectiveLang) effectiveLang = 'en';
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: pickColorAndDescribe,
-      args: [lang || 'en']
+      args: [effectiveLang]
     });
   } catch (error) {
     // 捕获权限不足或 Tab 丢失等错误
@@ -350,6 +359,29 @@ function pickColorAndDescribe(lang) {
     }, 3000);
   }
   
+  // --- [ 取色前临时挂起滤镜，保证取到页面原始颜色 ] ---
+  function temporarilySuspendPageFilter() {
+    const targets = [document.documentElement, document.body].filter((el) => el && el.style);
+    const saved = targets.map((el) => {
+      const state = {
+        el,
+        filter: el.style.getPropertyValue('filter'),
+        filterP: el.style.getPropertyPriority('filter'),
+        webkit: el.style.getPropertyValue('-webkit-filter'),
+        webkitP: el.style.getPropertyPriority('-webkit-filter'),
+      };
+      el.style.setProperty('filter', 'none', 'important');
+      el.style.setProperty('-webkit-filter', 'none', 'important');
+      return state;
+    });
+    return () => {
+      saved.forEach((s) => {
+        s.el.style.setProperty('filter', s.filter, s.filterP);
+        s.el.style.setProperty('-webkit-filter', s.webkit, s.webkitP);
+      });
+    };
+  }
+
   // --- [ EyeDropper API 主调用 ] ---
 
   if (!('EyeDropper' in window)) {
@@ -361,11 +393,13 @@ function pickColorAndDescribe(lang) {
     return;
   }
 
+  const restoreFilter = temporarilySuspendPageFilter();
   const eyeDropper = new EyeDropper();
 
   eyeDropper
     .open()
     .then((result) => {
+      restoreFilter();
       const hex = result.sRGBHex; // 例如 "#RRGGBB"
       const info = describeColor(hex, lang);
       const { r, g, b } = hexToRgb(hex);
@@ -386,7 +420,8 @@ function pickColorAndDescribe(lang) {
       });
     })
     .catch((err) => {
-      // 用户取消取色 (如按 ESC 键) 或失败
+      // 用户取消取色 (如按 ESC 键) 或失败：同样需要恢复滤镜
+      restoreFilter();
       console.log('取色被取消或失败:', err);
     });
 }

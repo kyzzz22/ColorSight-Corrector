@@ -323,12 +323,11 @@ function applyFilterToPage(mode, intensity = 50, saturation = 100, contrast = 10
     docEl.style.setProperty('filter', cssFilter, 'important');
     docEl.style.setProperty('-webkit-filter', cssFilter, 'important');
     docEl.style.setProperty('min-height', '100%', 'important');
-    
-    // 同时尝试应用到 body，以防 html 元素被特殊处理
-    if (document.body) {
-         document.body.style.setProperty('filter', cssFilter, 'important');
-         document.body.style.setProperty('-webkit-filter', cssFilter, 'important');
-    }
+
+    // 仅挂载到 <html>：对 html 的 filter 会作用于其全部后代
+    // （body 背景、固定定位元素等），因此不再重复设置 body，
+    // 避免同一页面被滤镜应用两次（双重增强）。
+
 
     console.log(`[Filter] ✓ 色彩校正已应用 (SVG Chain): ${mode}, I:${intensity}%, S:${saturation}%, C:${contrast}%`);
     lastApplied = { mode, intensity, saturation, contrast, filterValue: cssFilter };

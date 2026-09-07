@@ -191,7 +191,12 @@ function applyTranslations() {
   const domainStatusPill = document.getElementById('domainStatusPill');
   if (domainLabel) domainLabel.textContent = (currentDomain || '');
   if (document.getElementById('currentSiteLabel')) document.getElementById('currentSiteLabel').textContent = t('currentSiteLabel');
-  if (domainStatusPill) domainStatusPill.textContent = buildDomainStatusText();
+  if (domainStatusPill) {
+    // 依据当前选中态重建状态文本，避免无参调用被重置为“跟随”
+    const paused = domainStatusPill.classList.contains('paused');
+    const only = domainStatusPill.classList.contains('active');
+    domainStatusPill.textContent = buildDomainStatusText(paused, only, !paused && !only);
+  }
 }
 
 
@@ -249,7 +254,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         filterShortcut: defaultFilterShortcut, // 滤镜开关快捷键
         lang: defaultLang
     });
-    const domainRules = await chrome.storage.sync.get({ domainPauseList: [], domainEnableOnlyList: [] });
+    // 站点控制：读取 domainRulesMap（含旧字段迁移）
+    const rulesMap = await loadDomainRulesMapWithMigration();
     
     // 3. 初始化色彩增强 UI
     const isEnabled = result.enabled;
@@ -277,6 +283,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     currentLang = result.lang || defaultLang;
     if (langSelect) langSelect.value = currentLang;
+    // 确保 storage 中始终有 lang，供 background 取色 Toast 等消费
+    await chrome.storage.local.set({ lang: currentLang });
     
     // 5. 绑定事件监听器
     bindEventListeners();
@@ -286,7 +294,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 将所有设置（包括快捷键）发送给 content script
     await applyAllSettings(result.colorMode, result.intensity, isEnabled, scPicker, scFilter, { saturation: result.saturation, contrast: result.contrast }); 
     applyTranslations();
-    updateDomainControlsUI(domainRules);
+    updateDomainControlsUIFromMap(rulesMap);
 
   } catch (error) {
     console.error('加载设置失败:', error);
@@ -393,11 +401,10 @@ function bindEventListeners() {
   const handleDomainRuleChange = async (type) => { // type: 'off', 'on', 'follow'
       const rules = await loadDomainRulesMapWithMigration();
       if (type === 'follow') {
-          if (rules[currentDomain]) delete rules[currentDomain]; else rules[currentDomain] = 'follow'; // Toggle logic if needed, but 'follow' usually means delete rule
-          // Better logic: if clicking follow, just remove rule
+          // “跟随全局” = 移除该站点规则
           delete rules[currentDomain];
       } else {
-          // Toggle logic: if already this state, remove rule (go to follow), else set rule
+          // 再次点击同一种规则视为取消（恢复跟随全局）
           if (rules[currentDomain] === type) delete rules[currentDomain];
           else rules[currentDomain] = type;
       }
@@ -603,7 +610,17 @@ function buildDomainStatusText(paused, enableOnly, follow) {
 }
 
 async function loadDomainRulesMapWithMigration() {
-  const data = await chrome.storage.sync.get({ domainRulesMap: null });
+  const data = await chrome.storage.sync.get({ domainRulesMap: null, domainPauseList: [], domainEnableOnlyList: [] });
   let map = data.domainRulesMap || {};
+  // 兼容旧版本：将 domainPauseList / domainEnableOnlyList 迁移为 domainRulesMap
+  if (!data.domainRulesMap) {
+    const migrated = {};
+    (data.domainPauseList || []).forEach(d => { migrated[d] = 'off'; });
+    (data.domainEnableOnlyList || []).forEach(d => { migrated[d] = 'on'; });
+    if (Object.keys(migrated).length) {
+      await chrome.storage.sync.set({ domainRulesMap: migrated });
+      map = migrated;
+    }
+  }
   return map;
 }
