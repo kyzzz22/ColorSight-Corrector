@@ -17,6 +17,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// 监听快捷键命令
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'toggle-filter') {
+    const data = await chrome.storage.local.get({ enabled: false });
+    const newState = !data.enabled;
+    await chrome.storage.local.set({ enabled: newState });
+    
+    // 可选：在这里可以向当前 tab 发送消息显示 Toast，但在“小而美”理念下，
+    // 视觉上的滤镜切换（配合之前的 transition）本身就是最好的反馈。
+  }
+});
+
 /**
  * 异步函数：查询当前活动标签页，并注入取色函数。
  */

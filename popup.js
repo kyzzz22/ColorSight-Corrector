@@ -6,13 +6,13 @@ let statusMessage;
 let toggleSwitch;
 let intensitySlider;
 let intensityValue;
+let saturationSlider, saturationValue;
+let contrastSlider, contrastValue;
 
 // 新增：快捷键 UI 引用
-let shortcutCtrl;
-let shortcutAlt;
-let shortcutShift;
-let shortcutKeyInput;
-let shortcutPreview;
+let shortcutCtrl, shortcutAlt, shortcutShift, shortcutKeyInput;
+let scFilterCtrl, scFilterAlt, scFilterShift, scFilterKey; // 滤镜开关快捷键
+let shortcutPreview; // (已废弃，直接在 input 中显示)
 let langSelect;
 let currentLang = 'zh';
 let currentDomain = '';
@@ -37,14 +37,18 @@ const translations = {
     intensityHigh: '强烈',
     infoSelectDrag: '选择您的色弱/色盲类型，拖动强度条实时调整效果。',
     shortcutLabel: '取色快捷键：',
+    labelShortcuts: '快捷键设置',
+    shortcutPickerLabel: '屏幕取色',
+    shortcutFilterLabel: '一键开关滤镜 (透视)',
     shortcutDesc: '在网页中按下此快捷键，启动取色器并显示颜色信息。',
     shortcutCurrentPrefix: '当前快捷键：',
     shortcutNotSet: '未设置',
     shortcutNotSetFull: '未设置自定义快捷键',
-    shortcutNote: '注意：快捷键仅在网页处于激活状态时生效，且可能与系统/浏览器快捷键冲突。',
-    statusUpdatedApplied: '设置已更新并应用',
+    shortcutNote: '注意：快捷键仅在网页处于激活状态时生效。',
+    shortcutGlobalToggle: '提示：使用 Alt+Shift+F 快速开关滤镜',
+    statusUpdatedApplied: '设置已保存',
     statusDisabled: '色彩校正已关闭',
-    statusFailedRefresh: '操作失败，请尝试刷新页面后重试',
+    statusFailedRefresh: '操作失败，请尝试刷新页面',
     statusFailedGeneric: '操作失败'
     ,domainControlsLabel: '站点控制：'
     ,btnPauseShort: '暂停'
@@ -54,82 +58,99 @@ const translations = {
     ,domainStatusOnly: '仅此站'
     ,domainStatusFollow: '跟随全局'
     ,btnFollowShort: '跟随'
+    ,labelEnhance: '画面增强'
+    ,saturationLabel: '饱和度'
+    ,contrastLabel: '对比度'
   },
   en: {
     titleApp: 'Color Vision Enhancer',
     subtitle: 'Helps you view the web more clearly',
-    toggleLabel: 'Enable color correction',
-    labelMode: 'Select type:',
-    optgroupRed: 'Red-related',
-    optgroupGreen: 'Green-related',
-    optgroupBlue: 'Blue-related',
-    optionProtanomaly: 'Protanomaly (red weak) - mild',
-    optionProtanopia: 'Protanopia (red blind) - full',
-    optionDeuteranomaly: 'Deuteranomaly (green weak) - mild',
-    optionDeuteranopia: 'Deuteranopia (green blind) - full',
-    optionTritanomaly: 'Tritanomaly (blue weak) - mild',
-    optionTritanopia: 'Tritanopia (blue blind) - full',
-    intensityLabelPrefix: 'Correction intensity',
+    toggleLabel: 'Enable Correction',
+    labelMode: 'Correction Type',
+    optgroupRed: 'Red Deficiency',
+    optgroupGreen: 'Green Deficiency',
+    optgroupBlue: 'Blue Deficiency',
+    optionProtanomaly: 'Protanomaly (Red-Weak)',
+    optionProtanopia: 'Protanopia (Red-Blind)',
+    optionDeuteranomaly: 'Deuteranomaly (Green-Weak)',
+    optionDeuteranopia: 'Deuteranopia (Green-Blind)',
+    optionTritanomaly: 'Tritanomaly (Blue-Weak)',
+    optionTritanopia: 'Tritanopia (Blue-Blind)',
+    intensityLabelPrefix: 'Intensity',
     intensityLow: 'Low',
-    intensityMedium: 'Medium',
+    intensityMedium: 'Med',
     intensityHigh: 'High',
-    infoSelectDrag: 'Select your type and adjust intensity in real time.',
-    shortcutLabel: 'Eyedropper shortcut:',
-    shortcutDesc: 'Press this shortcut on a page to start the eyedropper and show color info.',
-    shortcutCurrentPrefix: 'Current shortcut: ',
-    shortcutNotSet: 'Not set',
-    shortcutNotSetFull: 'Custom shortcut not set',
-    shortcutNote: 'Note: The shortcut works only when the page is active and may conflict with system/browser shortcuts.',
-    statusUpdatedApplied: 'Settings updated and applied',
-    statusDisabled: 'Color correction is off',
-    statusFailedRefresh: 'Operation failed, please refresh the page and retry',
+    infoSelectDrag: 'Select type and drag slider to adjust.',
+    shortcutLabel: 'Eyedropper Shortcut:',
+    labelShortcuts: 'Shortcuts',
+    shortcutPickerLabel: 'Color Picker',
+    shortcutFilterLabel: 'Toggle Filter (Peek)',
+    shortcutDesc: 'Press to pick color from page.',
+    shortcutCurrentPrefix: 'Current: ',
+    shortcutNotSet: 'None',
+    shortcutNotSetFull: 'Not set',
+    shortcutNote: 'Shortcuts work when page is active.',
+    shortcutGlobalToggle: 'Tip: Use Alt+Shift+F to toggle',
+    statusUpdatedApplied: 'Settings Saved',
+    statusDisabled: 'Correction Disabled',
+    statusFailedRefresh: 'Failed, please refresh page',
     statusFailedGeneric: 'Operation failed'
-    ,domainControlsLabel: 'Site controls:'
+    ,domainControlsLabel: 'Site Rules'
     ,btnPauseShort: 'Pause'
-    ,btnEnableOnlyShort: 'Only'
+    ,btnEnableOnlyShort: 'Only Here'
     ,currentSiteLabel: 'Site: '
     ,domainStatusPaused: 'Paused'
-    ,domainStatusOnly: 'Only'
+    ,domainStatusOnly: 'Only Here'
     ,domainStatusFollow: 'Follow'
     ,btnFollowShort: 'Follow'
+    ,labelEnhance: 'Image Enhance'
+    ,saturationLabel: 'Saturation'
+    ,contrastLabel: 'Contrast'
   },
   ja: {
     titleApp: '色覚補助エンハンサー',
-    subtitle: 'より見やすくウェブを閲覧できます',
+    subtitle: 'より見やすくウェブを閲覧',
     toggleLabel: '色補正を有効にする',
-    labelMode: '種類を選択：',
-    optgroupRed: '赤系',
-    optgroupGreen: '緑系',
-    optgroupBlue: '青系',
-    optionProtanomaly: '赤弱視（Protanomaly）- 軽度',
-    optionProtanopia: '赤色盲（Protanopia）- 完全',
-    optionDeuteranomaly: '緑弱視（Deuteranomaly）- 軽度',
-    optionDeuteranopia: '緑色盲（Deuteranopia）- 完全',
-    optionTritanomaly: '青弱視（Tritanomaly）- 軽度',
-    optionTritanopia: '青色盲（Tritanopia）- 完全',
-    intensityLabelPrefix: '補正強度',
+    labelMode: '補正タイプ',
+    optgroupRed: '赤系 (1型)',
+    optgroupGreen: '緑系 (2型)',
+    optgroupBlue: '青系 (3型)',
+    optionProtanomaly: '赤弱視 (1型3色覚)',
+    optionProtanopia: '赤色盲 (1型2色覚)',
+    optionDeuteranomaly: '緑弱視 (2型3色覚)',
+    optionDeuteranopia: '緑色盲 (2型2色覚)',
+    optionTritanomaly: '青弱視 (3型3色覚)',
+    optionTritanopia: '青色盲 (3型2色覚)',
+    intensityLabelPrefix: '強度',
     intensityLow: '弱',
     intensityMedium: '中',
     intensityHigh: '強',
-    infoSelectDrag: '種類を選び、強度をリアルタイムに調整します。',
-    shortcutLabel: 'スポイトのショートカット：',
-    shortcutDesc: 'ページ上でこのショートカットを押すと、スポイトを起動して色情報を表示します。',
-    shortcutCurrentPrefix: '現在のショートカット：',
-    shortcutNotSet: '未設定',
-    shortcutNotSetFull: 'カスタムショートカットは未設定',
-    shortcutNote: '注意：ショートカットはページがアクティブな時のみ有効で、システム/ブラウザのショートカットと競合する場合があります。',
-    statusUpdatedApplied: '設定が更新され適用されました',
+    infoSelectDrag: '種類を選び、強度を調整します。',
+    shortcutLabel: 'スポイト:',
+    labelShortcuts: 'ショートカット設定',
+    shortcutPickerLabel: 'スポイト (色取得)',
+    shortcutFilterLabel: 'フィルター切替 (透視)',
+    shortcutDesc: 'ページ上で押すと色を取得します。',
+    shortcutCurrentPrefix: '現在: ',
+    shortcutNotSet: 'なし',
+    shortcutNotSetFull: '未設定',
+    shortcutNote: 'ページがアクティブな時のみ有効です。',
+    shortcutGlobalToggle: 'ヒント: Alt+Shift+F で切替',
+    statusUpdatedApplied: '設定を保存しました',
     statusDisabled: '色補正はオフです',
-    statusFailedRefresh: '操作に失敗しました。ページを更新して再試行してください',
-    statusFailedGeneric: '操作に失敗しました'
-    ,domainControlsLabel: 'サイト設定：'
+    statusFailedRefresh: '失敗しました。ページを更新してください',
+    statusFailedGeneric: '失敗しました'
+    ,domainControlsLabel: 'サイト設定'
     ,btnPauseShort: '停止'
     ,btnEnableOnlyShort: 'このサイトのみ'
-    ,currentSiteLabel: 'サイト：'
-    ,domainStatusPaused: '停止'
+    ,currentSiteLabel: 'サイト: '
+    ,domainStatusPaused: '停止中'
     ,domainStatusOnly: 'このサイトのみ'
-    ,domainStatusFollow: '継承'
-    ,btnFollowShort: '継承'
+    ,domainStatusFollow: 'グローバル設定'
+    ,btnFollowShort: 'グローバル'
+    ,labelEnhance: '画像強化'
+    ,saturationLabel: '彩度'
+    ,contrastLabel: 'コントラスト'
   }
 };
 function getDefaultLang() {
@@ -144,63 +165,33 @@ function t(key) {
   return pack[key] || key;
 }
 function applyTranslations() {
-  const elTitle = document.getElementById('titleApp');
-  const elSubtitle = document.getElementById('subtitle');
-  const elToggleLabel = document.getElementById('toggleLabel');
-  const elLabelMode = document.getElementById('labelMode');
-  const ogRed = document.getElementById('optgroupRed');
-  const ogGreen = document.getElementById('optgroupGreen');
-  const ogBlue = document.getElementById('optgroupBlue');
-  const optProtanomaly = document.getElementById('optionProtanomaly');
-  const optProtanopia = document.getElementById('optionProtanopia');
-  const optDeuteranomaly = document.getElementById('optionDeuteranomaly');
-  const optDeuteranopia = document.getElementById('optionDeuteranopia');
-  const optTritanomaly = document.getElementById('optionTritanomaly');
-  const optTritanopia = document.getElementById('optionTritanopia');
-  const elIntensityPrefix = document.getElementById('intensityLabelPrefix');
-  const elIntensityLow = document.getElementById('intensityLow');
-  const elIntensityMedium = document.getElementById('intensityMedium');
-  const elIntensityHigh = document.getElementById('intensityHigh');
-  const elInfoSelectDrag = document.getElementById('infoSelectDrag');
-  const elShortcutLabel = document.getElementById('shortcutLabel');
-  const elShortcutDesc = document.getElementById('shortcutDesc');
-  const elShortcutPreview = document.getElementById('shortcutPreview');
-  const elShortcutNote = document.getElementById('shortcutNote');
-  const elDomainControlsLabel = document.getElementById('domainControlsLabel');
-  const btnPauseDomain = document.getElementById('btnPauseDomain');
-  const btnEnableOnlyDomain = document.getElementById('btnEnableOnlyDomain');
-  const btnFollowDomain = document.getElementById('btnFollowDomain');
+  const ids = [
+    'titleApp', 'subtitle', 'toggleLabel', 'labelMode', 'optgroupRed', 'optgroupGreen', 'optgroupBlue',
+    'optionProtanomaly', 'optionProtanopia', 'optionDeuteranomaly', 'optionDeuteranopia', 'optionTritanomaly', 'optionTritanopia',
+    'intensityLabelPrefix', 'intensityLow', 'intensityMedium', 'intensityHigh', 'infoSelectDrag',
+    'shortcutLabel', 'shortcutDesc', 'shortcutNote', 'shortcutGlobalToggle', 'domainControlsLabel',
+    'btnPauseShort', 'btnEnableOnlyShort', 'btnFollowShort', 'labelShortcuts', 'shortcutPickerLabel', 'shortcutFilterLabel',
+    'labelEnhance', 'saturationLabel', 'contrastLabel'
+  ];
+  
+  ids.forEach(id => {
+      const el = document.getElementById(id);
+      // 特殊处理 button 的 textContent，因为它们在 HTML 里有特定的 ID
+      if (id === 'btnPauseShort') { if(document.getElementById('btnPauseDomain')) document.getElementById('btnPauseDomain').textContent = t('btnPauseShort'); }
+      else if (id === 'btnEnableOnlyShort') { if(document.getElementById('btnEnableOnlyDomain')) document.getElementById('btnEnableOnlyDomain').textContent = t('btnEnableOnlyShort'); }
+      else if (id === 'btnFollowShort') { if(document.getElementById('btnFollowDomain')) document.getElementById('btnFollowDomain').textContent = t('btnFollowShort'); }
+      // 特殊处理 optgroup，只更新 label 属性，避免覆盖子元素 option
+      else if (id.startsWith('optgroup')) {
+          if (el) el.setAttribute('label', t(id));
+      }
+      else if (el) el.textContent = t(id);
+  });
+
   const domainLabel = document.getElementById('domainLabel');
   const domainStatusPill = document.getElementById('domainStatusPill');
-  if (elTitle) elTitle.textContent = t('titleApp');
-  if (elSubtitle) elSubtitle.textContent = t('subtitle');
-  if (elToggleLabel) elToggleLabel.textContent = t('toggleLabel');
-  if (elLabelMode) elLabelMode.textContent = t('labelMode');
-  if (ogRed) ogRed.label = t('optgroupRed');
-  if (ogGreen) ogGreen.label = t('optgroupGreen');
-  if (ogBlue) ogBlue.label = t('optgroupBlue');
-  if (optProtanomaly) optProtanomaly.textContent = t('optionProtanomaly');
-  if (optProtanopia) optProtanopia.textContent = t('optionProtanopia');
-  if (optDeuteranomaly) optDeuteranomaly.textContent = t('optionDeuteranomaly');
-  if (optDeuteranopia) optDeuteranopia.textContent = t('optionDeuteranopia');
-  if (optTritanomaly) optTritanomaly.textContent = t('optionTritanomaly');
-  if (optTritanopia) optTritanopia.textContent = t('optionTritanopia');
-  if (elIntensityPrefix) elIntensityPrefix.textContent = t('intensityLabelPrefix');
-  if (elIntensityLow) elIntensityLow.textContent = t('intensityLow');
-  if (elIntensityMedium) elIntensityMedium.textContent = t('intensityMedium');
-  if (elIntensityHigh) elIntensityHigh.textContent = t('intensityHigh');
-  if (elInfoSelectDrag) elInfoSelectDrag.textContent = t('infoSelectDrag');
-  if (elShortcutLabel) elShortcutLabel.textContent = t('shortcutLabel');
-  if (elShortcutDesc) elShortcutDesc.textContent = t('shortcutDesc');
-  if (elShortcutNote) elShortcutNote.textContent = t('shortcutNote');
-  if (elDomainControlsLabel) elDomainControlsLabel.textContent = t('domainControlsLabel');
-  if (btnPauseDomain) btnPauseDomain.textContent = t('btnPauseShort');
-  if (btnEnableOnlyDomain) btnEnableOnlyDomain.textContent = t('btnEnableOnlyShort');
-  if (btnFollowDomain) btnFollowDomain.textContent = t('btnFollowShort');
-  if (domainLabel) domainLabel.textContent = t('currentSiteLabel') + (currentDomain || '');
+  if (domainLabel) domainLabel.textContent = (currentDomain || '');
+  if (document.getElementById('currentSiteLabel')) document.getElementById('currentSiteLabel').textContent = t('currentSiteLabel');
   if (domainStatusPill) domainStatusPill.textContent = buildDomainStatusText();
-  const sc = getShortcutSettings();
-  if (elShortcutPreview) elShortcutPreview.textContent = t('shortcutCurrentPrefix') + buildShortcutPreviewText(sc);
 }
 
 
@@ -213,18 +204,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   try {
     // 1. 获取元素引用
-    colorModeSelect = document.getElementById('colorModeSelect');
-    intensitySlider = document.getElementById('intensitySlider');
-    intensityValue = document.getElementById('intensityValue');
-    toggleSwitch = document.getElementById('toggleSwitch');
-    statusMessage = document.getElementById('statusMessage');
+    colorModeSelect = document.getElementById('colorModeSelect');
+    intensitySlider = document.getElementById('intensitySlider');
+    intensityValue = document.getElementById('intensityValue');
+    toggleSwitch = document.getElementById('toggleSwitch');
+    statusMessage = document.getElementById('statusMessage');
+    
+    saturationSlider = document.getElementById('saturationSlider');
+    saturationValue = document.getElementById('saturationValue');
+    contrastSlider = document.getElementById('contrastSlider');
+    contrastValue = document.getElementById('contrastValue');
 
-    // 新增：获取快捷键元素引用
+    // 快捷键元素引用 (取色)
     shortcutCtrl = document.getElementById('shortcutCtrl');
     shortcutAlt = document.getElementById('shortcutAlt');
     shortcutShift = document.getElementById('shortcutShift');
     shortcutKeyInput = document.getElementById('shortcutKeyInput');
-    shortcutPreview = document.getElementById('shortcutPreview');
+
+    // 快捷键元素引用 (滤镜开关)
+    scFilterCtrl = document.getElementById('scFilterCtrl');
+    scFilterAlt = document.getElementById('scFilterAlt');
+    scFilterShift = document.getElementById('scFilterShift');
+    scFilterKey = document.getElementById('scFilterKey');
+
     langSelect = document.getElementById('langSelect');
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     try {
@@ -233,31 +235,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
     
     // 2. 加载设置
-    const defaultShortcut = { ctrl: false, alt: true, shift: true, key: 'C' };
+    const defaultPickerShortcut = { ctrl: false, alt: true, shift: true, key: 'C' };
+    const defaultFilterShortcut = { ctrl: false, alt: true, shift: true, key: 'F' };
     const defaultLang = getDefaultLang();
     
     const result = await chrome.storage.local.get({
         colorMode: 'protanomaly', 
         enabled: true, 
         intensity: 50,
-        shortcut: defaultShortcut,
+        saturation: 100,
+        contrast: 100,
+        shortcut: defaultPickerShortcut,      // 取色快捷键
+        filterShortcut: defaultFilterShortcut, // 滤镜开关快捷键
         lang: defaultLang
     });
     const domainRules = await chrome.storage.sync.get({ domainPauseList: [], domainEnableOnlyList: [] });
-    
-    // 3. 初始化色彩增强 UI
-    const isEnabled = result.enabled;
-    if (colorModeSelect) colorModeSelect.value = result.colorMode;
-    if (intensitySlider) intensitySlider.value = result.intensity;
-    if (intensityValue) intensityValue.textContent = result.intensity;
-    if (toggleSwitch) toggleSwitch.checked = isEnabled;
+    
+    // 3. 初始化色彩增强 UI
+    const isEnabled = result.enabled;
+    if (colorModeSelect) colorModeSelect.value = result.colorMode;
+    if (intensitySlider) intensitySlider.value = result.intensity;
+    if (intensityValue) intensityValue.textContent = result.intensity + '%';
+    if (saturationSlider) saturationSlider.value = result.saturation;
+    if (saturationValue) saturationValue.textContent = result.saturation + '%';
+    if (contrastSlider) contrastSlider.value = result.contrast;
+    if (contrastValue) contrastValue.textContent = result.contrast + '%';
+    if (toggleSwitch) toggleSwitch.checked = isEnabled;
     
     // 4. 初始化快捷键 UI
-    const sc = result.shortcut;
-    if (shortcutCtrl) shortcutCtrl.checked = sc.ctrl;
-    if (shortcutAlt) shortcutAlt.checked = sc.alt;
-    if (shortcutShift) shortcutShift.checked = sc.shift;
-    if (shortcutKeyInput) shortcutKeyInput.value = sc.key;
+    const scPicker = result.shortcut;
+    if (shortcutCtrl) shortcutCtrl.checked = scPicker.ctrl;
+    if (shortcutAlt) shortcutAlt.checked = scPicker.alt;
+    if (shortcutShift) shortcutShift.checked = scPicker.shift;
+    if (shortcutKeyInput) shortcutKeyInput.value = scPicker.key;
+
+    const scFilter = result.filterShortcut || defaultFilterShortcut;
+    if (scFilterCtrl) scFilterCtrl.checked = scFilter.ctrl;
+    if (scFilterAlt) scFilterAlt.checked = scFilter.alt;
+    if (scFilterShift) scFilterShift.checked = scFilter.shift;
+    if (scFilterKey) scFilterKey.value = scFilter.key;
 
     currentLang = result.lang || defaultLang;
     if (langSelect) langSelect.value = currentLang;
@@ -268,7 +284,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 6. 初始化 UI 状态和滤镜
     updateUIState(isEnabled);
     // 将所有设置（包括快捷键）发送给 content script
-    await applyAllSettings(result.colorMode, result.intensity, isEnabled, sc); 
+    await applyAllSettings(result.colorMode, result.intensity, isEnabled, scPicker, scFilter, { saturation: result.saturation, contrast: result.contrast }); 
     applyTranslations();
     updateDomainControlsUI(domainRules);
 
@@ -288,115 +304,162 @@ function bindEventListeners() {
     toggleSwitch.addEventListener('change', async (e) => {
       const isEnabled = e.target.checked;
       updateUIState(isEnabled);
-      await applyAllSettings(colorModeSelect.value, parseInt(intensitySlider.value), isEnabled, getShortcutSettings());
+      await saveAndApply();
     });
   }
 
-  // 下拉菜单变化事件 - 直接应用
+  // 下拉菜单变化事件
   if (colorModeSelect) {
     colorModeSelect.addEventListener('change', async (e) => {
-      await applyAllSettings(e.target.value, parseInt(intensitySlider.value), true, getShortcutSettings());
+      await saveAndApply();
     });
   }
 
-  // 强度滑块 input 事件：实时更新数值显示和应用滤镜（拖动时）
+  // 强度滑块 input 事件
   if (intensitySlider) {
     intensitySlider.addEventListener('input', async (e) => {
-      const value = parseInt(e.target.value) || 50;
-      if (intensityValue) intensityValue.textContent = value;
-      
-      // 实时应用（不保存到 storage）
-      await applyAllSettings(colorModeSelect.value, value, toggleSwitch.checked, getShortcutSettings(), { skipStorage: true });
+      const value = parseInt(e.target.value) || 50;
+      if (intensityValue) intensityValue.textContent = value + '%';
+      // 实时应用（不保存到 storage）
+      await applyAllSettings(colorModeSelect.value, value, toggleSwitch.checked, getPickerShortcutSettings(), getFilterShortcutSettings(), { 
+          skipStorage: true,
+          saturation: saturationSlider ? parseInt(saturationSlider.value) : 100,
+          contrast: contrastSlider ? parseInt(contrastSlider.value) : 100
+      });
     });
     
-    // 强度滑块 change 事件：保存设置（释放鼠标时）
-    intensitySlider.addEventListener('change', async (e) => {
-      const intensity = parseInt(e.target.value) || 50;
-      // 保存并应用
-      await applyAllSettings(colorModeSelect.value, intensity, toggleSwitch.checked, getShortcutSettings());
+    // 强度滑块 change 事件
+    intensitySlider.addEventListener('change', async (e) => {
+      await saveAndApply();
     });
   }
+
+  // 饱和度滑块
+  if (saturationSlider) {
+      saturationSlider.addEventListener('input', async (e) => {
+          let value = parseInt(e.target.value);
+          if (isNaN(value)) value = 100;
+          if (saturationValue) saturationValue.textContent = value + '%';
+          await applyAllSettings(colorModeSelect.value, parseInt(intensitySlider.value), toggleSwitch.checked, getPickerShortcutSettings(), getFilterShortcutSettings(), { 
+              skipStorage: true,
+              saturation: value,
+              contrast: contrastSlider ? parseInt(contrastSlider.value) : 100
+          });
+      });
+      saturationSlider.addEventListener('change', async (e) => { await saveAndApply(); });
+      // 双击重置
+      saturationSlider.addEventListener('dblclick', async () => {
+          saturationSlider.value = 100;
+          if (saturationValue) saturationValue.textContent = '100%';
+          await saveAndApply();
+      });
+  }
+
+  // 对比度滑块
+  if (contrastSlider) {
+      contrastSlider.addEventListener('input', async (e) => {
+          let value = parseInt(e.target.value);
+          if (isNaN(value)) value = 100;
+          if (contrastValue) contrastValue.textContent = value + '%';
+          await applyAllSettings(colorModeSelect.value, parseInt(intensitySlider.value), toggleSwitch.checked, getPickerShortcutSettings(), getFilterShortcutSettings(), { 
+              skipStorage: true,
+              saturation: saturationSlider ? parseInt(saturationSlider.value) : 100,
+              contrast: value
+          });
+      });
+      contrastSlider.addEventListener('change', async (e) => { await saveAndApply(); });
+      // 双击重置
+      contrastSlider.addEventListener('dblclick', async () => {
+          contrastSlider.value = 100;
+          if (contrastValue) contrastValue.textContent = '100%';
+          await saveAndApply();
+      });
+  }
+
   if (langSelect) {
     langSelect.addEventListener('change', async (e) => {
       currentLang = e.target.value;
       await chrome.storage.local.set({ lang: currentLang });
       applyTranslations();
-      const mode = colorModeSelect ? colorModeSelect.value : 'protanomaly';
-      const intensity = intensitySlider ? parseInt(intensitySlider.value) : 50;
-      const isEnabled = toggleSwitch ? toggleSwitch.checked : true;
-      await applyAllSettings(mode, intensity, isEnabled, getShortcutSettings());
+      await saveAndApply();
     });
   }
+
+  // 站点控制按钮
   const btnPauseDomain = document.getElementById('btnPauseDomain');
   const btnEnableOnlyDomain = document.getElementById('btnEnableOnlyDomain');
   const btnFollowDomain = document.getElementById('btnFollowDomain');
-  if (btnPauseDomain) {
-    btnPauseDomain.addEventListener('click', async () => {
+
+  const handleDomainRuleChange = async (type) => { // type: 'off', 'on', 'follow'
       const rules = await loadDomainRulesMapWithMigration();
-      if (rules[currentDomain] === 'off') delete rules[currentDomain]; else rules[currentDomain] = 'off';
+      if (type === 'follow') {
+          if (rules[currentDomain]) delete rules[currentDomain]; else rules[currentDomain] = 'follow'; // Toggle logic if needed, but 'follow' usually means delete rule
+          // Better logic: if clicking follow, just remove rule
+          delete rules[currentDomain];
+      } else {
+          // Toggle logic: if already this state, remove rule (go to follow), else set rule
+          if (rules[currentDomain] === type) delete rules[currentDomain];
+          else rules[currentDomain] = type;
+      }
       await chrome.storage.sync.set({ domainRulesMap: rules });
       updateDomainControlsUIFromMap(rules);
-      const mode = colorModeSelect ? colorModeSelect.value : 'protanomaly';
-      const intensity = intensitySlider ? parseInt(intensitySlider.value) : 50;
-      const isEnabled = toggleSwitch ? toggleSwitch.checked : true;
-      await applyAllSettings(mode, intensity, isEnabled, getShortcutSettings());
-    });
-  }
-  if (btnEnableOnlyDomain) {
-    btnEnableOnlyDomain.addEventListener('click', async () => {
-      const rules = await loadDomainRulesMapWithMigration();
-      if (rules[currentDomain] === 'on') delete rules[currentDomain]; else rules[currentDomain] = 'on';
-      await chrome.storage.sync.set({ domainRulesMap: rules });
-      updateDomainControlsUIFromMap(rules);
-      const mode = colorModeSelect ? colorModeSelect.value : 'protanomaly';
-      const intensity = intensitySlider ? parseInt(intensitySlider.value) : 50;
-      const isEnabled = toggleSwitch ? toggleSwitch.checked : true;
-      await applyAllSettings(mode, intensity, isEnabled, getShortcutSettings());
-    });
-  }
-  if (btnFollowDomain) {
-    btnFollowDomain.addEventListener('click', async () => {
-      const rules = await loadDomainRulesMapWithMigration();
-      if (rules[currentDomain]) delete rules[currentDomain]; else rules[currentDomain] = 'follow';
-      await chrome.storage.sync.set({ domainRulesMap: rules });
-      updateDomainControlsUIFromMap(rules);
-      const mode = colorModeSelect ? colorModeSelect.value : 'protanomaly';
-      const intensity = intensitySlider ? parseInt(intensitySlider.value) : 50;
-      const isEnabled = toggleSwitch ? toggleSwitch.checked : true;
-      await applyAllSettings(mode, intensity, isEnabled, getShortcutSettings());
-    });
-  }
+      await saveAndApply();
+  };
+
+  if (btnPauseDomain) btnPauseDomain.addEventListener('click', () => handleDomainRuleChange('off'));
+  if (btnEnableOnlyDomain) btnEnableOnlyDomain.addEventListener('click', () => handleDomainRuleChange('on'));
+  if (btnFollowDomain) btnFollowDomain.addEventListener('click', () => handleDomainRuleChange('follow'));
   
   // --- 快捷键事件 ---
-  // 监听所有快捷键输入变化
-  [shortcutCtrl, shortcutAlt, shortcutShift].forEach(el => {
-    if (el) el.addEventListener('change', handleShortcutChange);
-  });
-
+  const bindShortcutInputs = (els, handler) => {
+      els.forEach(el => { if (el) el.addEventListener('change', handler); });
+  };
+  
+  // Picker Shortcut
+  bindShortcutInputs([shortcutCtrl, shortcutAlt, shortcutShift], handleShortcutChange);
   if (shortcutKeyInput) {
-    shortcutKeyInput.addEventListener('input', handleShortcutChange);
-    // 确保只能输入一个字母或数字
-    shortcutKeyInput.addEventListener('keydown', (e) => {
-        const key = e.key.toUpperCase();
-        if (key.length === 1 && /[A-Z0-9]/.test(key)) {
-            // 允许输入一个字母或数字
-        } else if (e.key === 'Backspace' || e.key === 'Delete') {
-             // 允许删除
-        } else {
-             e.preventDefault();
-        }
-    });
+      shortcutKeyInput.addEventListener('input', handleShortcutChange);
+      shortcutKeyInput.addEventListener('keydown', validateKeyInput);
   }
+
+  // Filter Shortcut
+  bindShortcutInputs([scFilterCtrl, scFilterAlt, scFilterShift], handleShortcutChange);
+  if (scFilterKey) {
+      scFilterKey.addEventListener('input', handleShortcutChange);
+      scFilterKey.addEventListener('keydown', validateKeyInput);
+  }
+
+  // 监听 Storage 变化
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync' || areaName === 'local') {
+      if (changes.enabled) {
+        const isEnabled = changes.enabled.newValue;
+        if (toggleSwitch) toggleSwitch.checked = isEnabled;
+        updateUIState(isEnabled);
+      }
+      if (changes.domainRulesMap) {
+         updateDomainControlsUIFromMap(changes.domainRulesMap.newValue);
+      }
+    }
+  });
+}
+
+function validateKeyInput(e) {
+    const key = e.key.toUpperCase();
+    if (key.length === 1 && /[A-Z0-9]/.test(key)) {
+        // Allow
+    } else if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
+        // Allow
+    } else {
+        e.preventDefault();
+    }
 }
 
 // =========================================================================
 // B. 快捷键辅助函数
 // =========================================================================
 
-/**
- * 从 UI 获取当前的快捷键设置对象
- */
-function getShortcutSettings() {
+function getPickerShortcutSettings() {
     return {
         ctrl: shortcutCtrl ? shortcutCtrl.checked : false,
         alt: shortcutAlt ? shortcutAlt.checked : false,
@@ -405,38 +468,29 @@ function getShortcutSettings() {
     };
 }
 
+function getFilterShortcutSettings() {
+    return {
+        ctrl: scFilterCtrl ? scFilterCtrl.checked : false,
+        alt: scFilterAlt ? scFilterAlt.checked : false,
+        shift: scFilterShift ? scFilterShift.checked : false,
+        key: scFilterKey ? scFilterKey.value.toUpperCase() : ''
+    };
+}
+
 /**
- * 处理快捷键变化：更新预览，保存设置
+ * 处理快捷键变化：保存设置
  */
-function handleShortcutChange() {
-    const sc = getShortcutSettings();
+async function handleShortcutChange() {
+    await saveAndApply();
+}
 
-    // 更新预览
-    const modifiers = [];
-    if (sc.ctrl) modifiers.push('Ctrl');
-    if (sc.alt) modifiers.push('Alt');
-    if (sc.shift) modifiers.push('Shift');
-    const key = sc.key || t('shortcutNotSet');
-    
-    let previewText = '';
-    if (modifiers.length > 0) {
-        previewText = modifiers.join(' + ') + ' + ' + key;
-    } else if (key !== t('shortcutNotSet')) {
-         previewText = key;
-    } else {
-        previewText = t('shortcutNotSetFull');
-    }
-
-    if (shortcutPreview) {
-        shortcutPreview.textContent = t('shortcutCurrentPrefix') + previewText;
-    }
-
-    // 保存设置 (连同色彩校正设置一起)
+async function saveAndApply() {
     const mode = colorModeSelect ? colorModeSelect.value : 'protanomaly';
     const intensity = intensitySlider ? parseInt(intensitySlider.value) : 50;
     const isEnabled = toggleSwitch ? toggleSwitch.checked : false;
-
-    applyAllSettings(mode, intensity, isEnabled, sc);
+    const saturation = saturationSlider ? parseInt(saturationSlider.value) : 100;
+    const contrast = contrastSlider ? parseInt(contrastSlider.value) : 100;
+    await applyAllSettings(mode, intensity, isEnabled, getPickerShortcutSettings(), getFilterShortcutSettings(), { saturation, contrast });
 }
 
 
@@ -445,133 +499,111 @@ function handleShortcutChange() {
 // =========================================================================
 
 /**
- * 统一应用和保存所有设置（色彩增强和快捷键）
- * @param {string} mode - 颜色模式
- * @param {number} intensity - 强度
- * @param {boolean} isEnabled - 是否启用
- * @param {object} shortcutSettings - 快捷键设置对象
- * @param {object} options - 选项，如 { skipStorage: true }
+ * 统一应用和保存所有设置
  */
-async function applyAllSettings(mode, intensity, isEnabled, shortcutSettings, options = {}) {
+async function applyAllSettings(mode, intensity, isEnabled, pickerShortcut, filterShortcut, options = {}) {
     try {
+        const saturation = options.saturation !== undefined ? options.saturation : 100;
+        const contrast = options.contrast !== undefined ? options.contrast : 100;
+
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         
-        if (!tab.id) {
-            console.error('无法获取标签页ID');
-            return;
+        if (tab && tab.id) {
+            // 1. 通知 content script
+            await chrome.tabs.sendMessage(tab.id, {
+                action: 'UPDATE_ALL_SETTINGS',
+                mode: mode,
+                intensity: intensity,
+                enabled: isEnabled,
+                shortcut: pickerShortcut,
+                filterShortcut: filterShortcut,
+                saturation: saturation,
+                contrast: contrast,
+                lang: currentLang
+            }).catch(() => {}); // Ignore connection errors
         }
-
-        // 1. 通知 content script 更新所有设置
-        await chrome.tabs.sendMessage(tab.id, {
-            action: 'UPDATE_ALL_SETTINGS', // 新增统一的 action
-            mode: mode,
-            intensity: intensity,
-            enabled: isEnabled,
-            shortcut: shortcutSettings,
-            lang: currentLang
-        });
         
-        // 2. 保存设置到 storage (如果不是实时拖动)
+        // 2. 保存设置
         if (!options.skipStorage) {
              await chrome.storage.local.set({ 
                 colorMode: mode,
                 intensity: intensity,
                 enabled: isEnabled,
-                shortcut: shortcutSettings,
+                shortcut: pickerShortcut,
+                filterShortcut: filterShortcut,
+                saturation: saturation,
+                contrast: contrast,
                 lang: currentLang
             });
-            showStatus(isEnabled ? t('statusUpdatedApplied') : t('statusDisabled'), isEnabled ? 'success' : 'info');
+            showStatus(t('statusUpdatedApplied'), 'success');
         }
 
     } catch (error) {
-        console.error('应用所有设置失败:', error);
-        if (error.message && error.message.includes('Could not establish connection')) {
-            // Content script 未加载，用户需要刷新页面
-            showStatus(t('statusFailedRefresh'), 'error');
-        } else {
-            showStatus(t('statusFailedGeneric'), 'error');
-        }
+        console.error('应用设置失败:', error);
     }
-}
-
-// 移除滤镜 (仅用于兼容性，实际逻辑已集成到 applyAllSettings)
-async function removeFilter() {
-    await applyAllSettings('protanomaly', 50, false, getShortcutSettings());
-}
-
-// 应用滤镜 (仅用于兼容性，实际逻辑已集成到 applyAllSettings)
-async function applyFilter(mode, intensity = 50) {
-    await applyAllSettings(mode, intensity, true, getShortcutSettings());
 }
 
 // =========================================================================
 // D. 通用 UI 辅助函数
 // =========================================================================
 
-// 显示状态消息
 function showStatus(message, type = 'success') {
   if (!statusMessage) return;
   
   statusMessage.textContent = message;
-  statusMessage.className = `status-message ${type}`;
+  statusMessage.className = `status-toast show`;
   
-  // 3秒后清除消息
   clearTimeout(statusMessage.timer);
   statusMessage.timer = setTimeout(() => {
-    statusMessage.textContent = '';
-    statusMessage.className = 'status-message';
-  }, 3000);
+    statusMessage.className = 'status-toast';
+  }, 2000);
 }
 
-// 更新UI状态（启用/禁用设置控件）
 function updateUIState(enabled) {
-  if (colorModeSelect) colorModeSelect.disabled = !enabled;
-  if (intensitySlider) intensitySlider.disabled = !enabled;
+  // if (colorModeSelect) colorModeSelect.disabled = !enabled; // 设计上保持启用更好，方便预览调整
+  // if (intensitySlider) intensitySlider.disabled = !enabled;
 }
-function buildShortcutPreviewText(sc) {
-  const modifiers = [];
-  if (sc.ctrl) modifiers.push('Ctrl');
-  if (sc.alt) modifiers.push('Alt');
-  if (sc.shift) modifiers.push('Shift');
-  const key = sc.key || t('shortcutNotSet');
-  if (modifiers.length > 0) return modifiers.join(' + ') + ' + ' + key;
-  if (key !== t('shortcutNotSet')) return key;
-  return t('shortcutNotSetFull');
-}
+
 function updateDomainControlsUI(rulesObj) {
   updateDomainControlsUIFromMap(rulesObj || {});
 }
+
 function updateDomainControlsUIFromMap(rulesMap) {
   const btnPauseDomain = document.getElementById('btnPauseDomain');
   const btnEnableOnlyDomain = document.getElementById('btnEnableOnlyDomain');
   const btnFollowDomain = document.getElementById('btnFollowDomain');
   const domainStatusPill = document.getElementById('domainStatusPill');
   const rule = (rulesMap && currentDomain) ? rulesMap[currentDomain] : undefined;
+  
   const paused = rule === 'off';
   const enableOnly = rule === 'on';
   const follow = !rule || rule === 'follow';
-  if (btnPauseDomain) btnPauseDomain.classList.toggle('active', !!paused);
-  if (btnEnableOnlyDomain) btnEnableOnlyDomain.classList.toggle('active', !!enableOnly);
-  if (btnFollowDomain) btnFollowDomain.classList.toggle('active', !!follow);
+  
+  if (btnPauseDomain) { btnPauseDomain.className = 'seg-btn'; if (paused) btnPauseDomain.classList.add('active'); }
+  if (btnEnableOnlyDomain) { btnEnableOnlyDomain.className = 'seg-btn'; if (enableOnly) btnEnableOnlyDomain.classList.add('active'); }
+  if (btnFollowDomain) { btnFollowDomain.className = 'seg-btn'; if (follow) btnFollowDomain.classList.add('active'); }
+  
   if (domainStatusPill) {
     domainStatusPill.textContent = buildDomainStatusText(paused, enableOnly, follow);
-    domainStatusPill.classList.remove('pill--paused', 'pill--only', 'pill--none');
-    domainStatusPill.classList.add(paused ? 'pill--paused' : enableOnly ? 'pill--only' : 'pill--none');
+    domainStatusPill.className = 'domain-status';
+    if (paused) domainStatusPill.classList.add('paused');
+    else if (enableOnly) domainStatusPill.classList.add('active');
   }
 }
+
 function buildDomainStatusText(paused, enableOnly, follow) {
+  // If args not provided, re-calculate (lazy way)
+  if (paused === undefined) {
+      // Not ideal but safe fallback
+      return t('domainStatusFollow');
+  }
   if (paused) return t('domainStatusPaused');
   if (enableOnly) return t('domainStatusOnly');
   return t('domainStatusFollow');
 }
+
 async function loadDomainRulesMapWithMigration() {
-  const data = await chrome.storage.sync.get({ domainRulesMap: null, domainPauseList: [], domainEnableOnlyList: [] });
-  let map = data.domainRulesMap;
-  if (!map) {
-    map = {};
-    (data.domainPauseList || []).forEach(d => { map[d] = 'off'; });
-    (data.domainEnableOnlyList || []).forEach(d => { map[d] = 'on'; });
-    await chrome.storage.sync.set({ domainRulesMap: map });
-  }
+  const data = await chrome.storage.sync.get({ domainRulesMap: null });
+  let map = data.domainRulesMap || {};
   return map;
 }
